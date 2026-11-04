@@ -1,0 +1,30 @@
+name: Sync labels
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/sync-labels.yml
+
+permissions:
+  issues: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create or update labels
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh label create "✨ feat" --color A2EEEF --description "새로운 기능" --force
+          gh label create "🐛 fix" --color D73A4A --description "버그 수정" --force
+          gh label create "📦 build" --color 5319E7 --description "빌드 및 의존성" --force
+          gh label create "🧹 chore" --color EDEDED --description "기타 유지보수" --force
+          gh label create "⚙️ ci" --color 0E8A16 --description "CI 작업" --force
+          gh label create "📝 docs" --color 0075CA --description "문서 작업" --force
+          gh label create "🎨 style" --color FEF2C0 --description "코드 스타일" --force
+          gh label create "♻️ refactor" --color FBCA04 --description "리팩터링" --force
+          gh label create "🧪 test" --color BFDADC --description "테스트" --force

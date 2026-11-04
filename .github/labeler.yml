@@ -1,0 +1,28 @@
+enable:
+  issues: true
+  prs: true
+
+comments:
+  prs: |
+    PR 제목을 기준으로 작업 유형 라벨을 적용했습니다.
+    잘못된 라벨은 직접 수정해 주세요.
+
+labels:
+  '✨ feat':
+    include: ['(?i)^feat(\([^)]+\))?!?:']
+  '🐛 fix':
+    include: ['(?i)^fix(\([^)]+\))?!?:']
+  '📦 build':
+    include: ['(?i)^build(\([^)]+\))?!?:']
+  '🧹 chore':
+    include: ['(?i)^chore(\([^)]+\))?!?:']
+  '⚙️ ci':
+    include: ['(?i)^ci(\([^)]+\))?!?:']
+  '📝 docs':
+    include: ['(?i)^docs(\([^)]+\))?!?:']
+  '🎨 style':
+    include: ['(?i)^style(\([^)]+\))?!?:']
+  '♻️ refactor':
+    include: ['(?i)^refactor(\([^)]+\))?!?:']
+  '🧪 test':
+    include: ['(?i)^test(\([^)]+\))?!?:']
