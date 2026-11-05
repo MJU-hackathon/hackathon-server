@@ -9,7 +9,7 @@
 | Language | Java 21 |
 | Framework | Spring Boot 4.1.2 |
 | Build | Gradle |
-| Database | AWS RDS MySQL |
+| Database | MySQL 8.4 (운영: AWS RDS, 로컬: Docker Compose) |
 | ORM | Spring Data JPA |
 | API Documentation | SpringDoc OpenAPI (Swagger UI) |
 | Validation | Spring Validation |
@@ -42,23 +42,42 @@ src
 
 ## 로컬 실행
 
-1. `.env.example`을 `.env`로 복사하고 RDS 접속 정보를 입력합니다.
+로컬 DB는 Docker Compose로 띄운 MySQL 8.4를 사용합니다. (운영 RDS와 같은 버전)
+Docker Compose와 Spring이 같은 `.env`를 함께 읽기 때문에 계정 정보는 `.env` 한 곳에서만 관리합니다.
 
-```properties
-DB_URL=jdbc:mysql://<rds-endpoint>:3306/<database>?serverTimezone=Asia/Seoul
-DB_USERNAME=<username>
-DB_PASSWORD=<password>
-SERVER_PORT=8080
-CORS_ALLOWED_ORIGINS=http://localhost:3000
+1. `.env`를 만듭니다. 예시 값 그대로 사용해도 됩니다.
+
+```bash
+cp .env.example .env        # Windows: copy .env.example .env
 ```
 
-2. 애플리케이션을 실행합니다.
+2. MySQL을 실행합니다. `thingkerton` DB와 앱 계정이 자동으로 만들어집니다.
 
-```powershell
-.\gradlew.bat bootRun
+```bash
+docker compose up -d
+docker compose ps           # STATUS가 healthy가 되면 준비 완료
 ```
 
-3. `http://localhost:8080/swagger-ui/index.html`에서 API 문서를 확인합니다.
+3. 애플리케이션을 실행합니다.
+
+```bash
+./gradlew bootRun           # Windows: .\gradlew.bat bootRun
+```
+
+4. `http://localhost:8080/swagger-ui/index.html`에서 API 문서를 확인합니다.
+
+### 자주 쓰는 명령
+
+| 명령 | 설명 |
+|---|---|
+| `docker compose up -d` | MySQL 실행 |
+| `docker compose stop` | MySQL 중지 (데이터 유지) |
+| `docker compose logs -f mysql` | MySQL 로그 확인 |
+| `docker compose exec mysql mysql -uthingkerton -pthingkerton thingkerton` | MySQL 콘솔 접속 |
+| `docker compose down -v` | 컨테이너와 데이터 모두 삭제 (DB 초기화) |
+
+- 로컬에 설치된 MySQL이 이미 3306 포트를 쓰고 있다면 중지하거나, `.env`에 `DB_PORT=3307`을 추가하고 `DB_URL`의 포트도 3307로 바꿉니다.
+- 기존 `.env`를 쓰던 경우 `DB_USERNAME`, `DB_PASSWORD`를 `.env.example`과 같이 바꿔야 합니다. 컨테이너의 앱 계정은 처음 생성될 때의 값으로 만들어지므로, 계정을 바꾼 뒤에는 `docker compose down -v`로 초기화합니다.
 
 ## 테스트
 
@@ -66,7 +85,7 @@ CORS_ALLOWED_ORIGINS=http://localhost:3000
 .\gradlew.bat test
 ```
 
-테스트는 인메모리 H2를 MySQL 호환 모드로 사용하므로 RDS 접속 정보가 필요하지 않습니다.
+테스트는 인메모리 H2를 MySQL 호환 모드로 사용하므로 MySQL을 실행하지 않아도 됩니다.
 
 ## 협업 규칙
 
