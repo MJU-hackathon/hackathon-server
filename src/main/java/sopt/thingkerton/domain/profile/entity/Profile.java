@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.EnumSet;
 import java.util.Set;
 import lombok.AccessLevel;
@@ -72,5 +73,24 @@ public class Profile extends BaseTimeEntity {
 
     public AppLocale getLocale() {
         return AppLocale.find(locale).orElseThrow();
+    }
+
+    /**
+     * 귀국까지 남은 일수. 귀국 당일 0, 지난 경우도 0.
+     */
+    public long dDay(LocalDate today) {
+        return Math.max(0, ChronoUnit.DAYS.between(today, stayEndDate));
+    }
+
+    /**
+     * 체류 기간 경과율(0~100, 내림).
+     */
+    public int stayProgressPercent(LocalDate today) {
+        long total = ChronoUnit.DAYS.between(stayStartDate, stayEndDate);
+        if (total <= 0) {
+            return today.isBefore(stayStartDate) ? 0 : 100;
+        }
+        long elapsed = Math.clamp(ChronoUnit.DAYS.between(stayStartDate, today), 0, total);
+        return (int) (elapsed * 100 / total);
     }
 }
