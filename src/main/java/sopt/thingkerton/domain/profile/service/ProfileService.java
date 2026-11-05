@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import sopt.thingkerton.domain.profile.code.ProfileErrorCode;
+import sopt.thingkerton.domain.profile.entity.AppLocale;
 import sopt.thingkerton.domain.profile.entity.Profile;
 import sopt.thingkerton.domain.profile.entity.ProfileInfo;
 import sopt.thingkerton.domain.profile.repository.ProfileRepository;
@@ -28,6 +29,13 @@ public class ProfileService {
     public Profile getProfile(String userKey) {
         return profileRepository.findWithInterestsByUserKey(userKey)
                 .orElseThrow(() -> new BusinessException(ProfileErrorCode.PROFILE_NOT_FOUND));
+    }
+
+    /**
+     * 요청 언어가 없으면 프로필 언어를 쓴다.
+     */
+    public AppLocale resolveLocale(String userKey, AppLocale requested) {
+        return requested != null ? requested : getProfile(userKey).getLocale();
     }
 
     public ProfileSummary getSummary(String userKey) {
