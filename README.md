@@ -74,4 +74,53 @@ CORS_ALLOWED_ORIGINS=http://localhost:3000
 - 커밋: `{type}: {description} - #{issue-number}`
 - 타입: `feat`, `fix`, `refactor`, `docs`, `style`, `test`, `build`, `chore`, `ci`
 
-EC2 배포와 배포용 GitHub Actions는 아직 포함하지 않았습니다.
+## CI/CD
+
+| 워크플로우 | 트리거 | 동작 |
+|---|---|---|
+| `ci.yml` | `main` 대상 PR | `./gradlew build` (컴파일 + 테스트) |
+| `cd.yml` | `main` push, 수동 실행 | `app.jar` 빌드 → EC2 `~/app`에 전송 → `systemctl restart thingkerton` |
+
+### EC2 최초 세팅 (1회)
+
+1. 보안 그룹에서 22(SSH), 8080 포트를 엽니다.
+2. Java 21과 MySQL을 설치합니다. (Ubuntu 기준)
+
+```bash
+sudo apt update && sudo apt install -y openjdk-21-jre-headless mysql-server
+mkdir -p ~/app
+```
+
+3. `~/app/.env`를 작성합니다. 애플리케이션이 실행 디렉터리의 `.env`를 자동으로 읽습니다.
+4. `/etc/systemd/system/thingkerton.service`를 생성합니다. (`ubuntu`는 실제 사용자명으로 변경)
+
+```ini
+[Unit]
+Description=Thingkerton Server
+After=network.target mysql.service
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/app
+ExecStart=/usr/bin/java -jar /home/ubuntu/app/app.jar
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload && sudo systemctl enable thingkerton
+```
+
+### GitHub Secrets
+
+Settings → Secrets and variables → Actions에 등록합니다.
+
+| 이름 | 값 |
+|---|---|
+| `EC2_HOST` | EC2 퍼블릭 IP 또는 도메인 |
+| `EC2_USERNAME` | `ubuntu` (Amazon Linux는 `ec2-user`) |
+| `EC2_SSH_KEY` | `.pem` 키 파일 내용 전체 |
+
+배포 상태는 EC2에서 `sudo systemctl status thingkerton`, 로그는 `journalctl -u thingkerton -f`로 확인합니다.
