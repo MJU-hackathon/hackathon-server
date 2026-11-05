@@ -2,6 +2,7 @@ package sopt.thingkerton.domain.quest.service;
 
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
@@ -81,6 +82,7 @@ public class DailyQuestService {
 
     private void createDailySet(Profile profile, LocalDate today, BigDecimal latitude, BigDecimal longitude,
                                 AppLocale locale) {
+        long startedAt = System.nanoTime();
         List<Interest> interests = profile.getInterests().stream().sorted().toList();
         Set<PlaceActivityKey> excludedKeys = new HashSet<>(diaryRepository.findExperiencedKeys(profile.getUserKey()));
 
@@ -93,11 +95,15 @@ public class DailyQuestService {
             textLocale = DemoQuestProvider.DEMO_LOCALE;
         }
         // 대표 이미지 AI 생성과 장소 주소 → 좌표 변환은 서로 무관하므로 동시에 실행한다 (응답 시간 = 둘 중 긴 쪽)
+        // 퀘스트 생성 후 마감까지 남은 시간을 쓴다 (각 상한을 넘지 않음). 생성이 빨리 끝나면 이미지에 시간을 더 준다
         // 이미지: 데모 퀘스트는 생성하지 않음, 실패하면 카테고리 기본 이미지 / 좌표: 실패하면 좌표 없이 저장
+        Duration remaining = questProperties.ensureDeadline().minusNanos(System.nanoTime() - startedAt);
+        Duration imageTimeout = capped(questProperties.imageGenerationTimeout(), remaining);
         CompletableFuture<List<GeneratedQuest>> withImages = isFallback
                 ? CompletableFuture.completedFuture(quests)
-                : questImageAttacher.attachImagesAsync(quests);
-        List<GeneratedQuest> withCoordinates = questGeocoder.attachCoordinates(quests);
+                : questImageAttacher.attachImagesAsync(quests, imageTimeout);
+        List<GeneratedQuest> withCoordinates = questGeocoder.attachCoordinates(quests,
+                capped(questProperties.geocodingTimeout(), remaining));
         quests = mergeImageRefs(withCoordinates, withImages.join());
 
         try {
@@ -107,6 +113,16 @@ public class DailyQuestService {
             // 동시 요청으로 다른 요청이 먼저 오늘 묶음을 만들었다. 그 묶음을 사용한다.
             log.info("Daily quest set already created concurrently. userKey={}", profile.getUserKey());
         }
+    }
+
+    /**
+     * @return {@code min(limit, remaining)}. 마감이 지났으면 0
+     */
+    private static Duration capped(Duration limit, Duration remaining) {
+        if (remaining.isNegative()) {
+            return Duration.ZERO;
+        }
+        return limit.compareTo(remaining) <= 0 ? limit : remaining;
     }
 
     /**

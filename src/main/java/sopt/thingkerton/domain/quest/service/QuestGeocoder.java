@@ -1,5 +1,6 @@
 package sopt.thingkerton.domain.quest.service;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -23,22 +24,22 @@ import sopt.thingkerton.domain.location.service.LocationService;
 public class QuestGeocoder implements DisposableBean {
 
     private final LocationService locationService;
-    private final QuestProperties questProperties;
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
-    public QuestGeocoder(LocationService locationService, QuestProperties questProperties) {
+    public QuestGeocoder(LocationService locationService) {
         this.locationService = locationService;
-        this.questProperties = questProperties;
     }
 
     /**
      * 좌표가 없는 퀘스트만 병렬로 변환한다. 순서는 유지한다.
+     *
+     * @param timeout 제한 시간 (호출 측이 마감까지 남은 시간으로 정한다)
      */
-    public List<GeneratedQuest> attachCoordinates(List<GeneratedQuest> quests) {
+    public List<GeneratedQuest> attachCoordinates(List<GeneratedQuest> quests, Duration timeout) {
         List<CompletableFuture<GeneratedQuest>> futures = quests.stream()
                 .map(quest -> needsGeocoding(quest)
                         ? CompletableFuture.supplyAsync(() -> geocode(quest), executor)
-                        .completeOnTimeout(quest, questProperties.geocodingTimeout().toMillis(), TimeUnit.MILLISECONDS)
+                        .completeOnTimeout(quest, timeout.toMillis(), TimeUnit.MILLISECONDS)
                         : CompletableFuture.completedFuture(quest))
                 .toList();
         return futures.stream().map(CompletableFuture::join).toList();

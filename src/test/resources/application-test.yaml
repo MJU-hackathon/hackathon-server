@@ -21,6 +21,7 @@ app:
     translation-timeout: 1s
     geocoding-timeout: 1s
     image-generation-timeout: 1s
+    ensure-deadline: 3s
     # 로컬 .env(QUEST_IMAGE_BASE_URL)와 무관하게 고정
     image-base-url: https://cdn.example.com/quest-images
   naver-maps:
