@@ -11,10 +11,12 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import sopt.thingkerton.global.code.ErrorCode;
 import sopt.thingkerton.global.code.GlobalErrorCode;
 import sopt.thingkerton.global.dto.CommonResponse;
+import sopt.thingkerton.global.s3.S3ErrorCode;
 
 @Slf4j
 @RestControllerAdvice
@@ -45,6 +47,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             HttpStatusCode status,
             WebRequest request) {
         return handleValidationException(exception);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleMaxUploadSizeExceededException(
+            MaxUploadSizeExceededException exception,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request) {
+        ErrorCode errorCode = S3ErrorCode.FILE_TOO_LARGE;
+        return ResponseEntity.status(errorCode.getStatus()).body(CommonResponse.error(errorCode));
     }
 
     private ResponseEntity<Object> handleValidationException(BindException exception) {
