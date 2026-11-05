@@ -5,7 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 
 /**
- * LLM 호출을 가짜 구현으로 교체한다.
+ * LLM 호출과 네이버 Geocoding을 가짜 구현으로 교체한다.
  */
 @TestConfiguration
 public class FakeAiConfig {
@@ -20,5 +20,11 @@ public class FakeAiConfig {
     @Primary
     public FakeQuestTranslator fakeQuestTranslator() {
         return new FakeQuestTranslator();
+    }
+
+    @Bean
+    @Primary
+    public FakeGeocodingPort fakeGeocodingPort() {
+        return new FakeGeocodingPort();
     }
 }

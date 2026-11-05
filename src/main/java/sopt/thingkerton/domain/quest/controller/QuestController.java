@@ -26,7 +26,8 @@ public class QuestController {
 
     private final QuestService questService;
 
-    @Operation(summary = "퀘스트 상세", description = "같은 장소·활동을 요청 언어로 설명합니다. 본인 묶음의 퀘스트만 조회할 수 있습니다.")
+    @Operation(summary = "퀘스트 상세", description = "같은 장소·활동을 요청 언어로 설명합니다. 본인 묶음의 퀘스트만 조회할 수 있습니다. "
+            + "address·latitude·longitude는 퀘스트 생성 시 AI가 만든 주소를 네이버 Geocoding으로 변환한 값이며, 변환에 실패하면 null입니다.")
     @GetMapping("/{questId}")
     public CommonResponse<QuestDetailResponse> getDetail(
             @UserKey String userKey,

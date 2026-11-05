@@ -39,6 +39,7 @@ import sopt.thingkerton.domain.quest.entity.Quest;
 import sopt.thingkerton.domain.quest.repository.DailyQuestSetRepository;
 import sopt.thingkerton.domain.quest.repository.QuestRepository;
 import sopt.thingkerton.support.FakeAiConfig;
+import sopt.thingkerton.support.FakeGeocodingPort;
 import sopt.thingkerton.support.FakeQuestGenerator;
 import sopt.thingkerton.support.FakeQuestTranslator;
 import sopt.thingkerton.support.FixedClockConfig;
@@ -59,6 +60,8 @@ class QuestApiTest {
     @Autowired
     private FakeQuestTranslator translator;
     @Autowired
+    private FakeGeocodingPort geocodingPort;
+    @Autowired
     private MutableClock clock;
     @Autowired
     private DailyQuestSetRepository dailyQuestSetRepository;
@@ -73,6 +76,7 @@ class QuestApiTest {
     void tearDown() {
         generator.reset();
         translator.reset();
+        geocodingPort.reset();
         clock.reset();
     }
 
@@ -324,6 +328,70 @@ class QuestApiTest {
         today(userKey, "en")
                 .andExpect(jsonPath("$.data[0].title").value(org.hamcrest.Matchers.startsWith("[en]")));
         assertThat(translator.calls()).isEqualTo(2);
+    }
+
+    @Test
+    void 상세에_생성_시_변환한_주소와_좌표를_내려주고_조회_때는_다시_변환하지_않는다() throws Exception {
+        String userKey = newUserWithProfile("ko");
+        Integer questId = questIds(ensure(userKey, null)).getFirst();
+        assertThat(geocodingPort.addresses()).hasSize(3);
+
+        mockMvc.perform(get("/api/quests/{id}", questId).header("X-User-Key", userKey))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.address").value(org.hamcrest.Matchers.startsWith("서울특별시 서대문구 place-a-")))
+                .andExpect(jsonPath("$.data.latitude").value(37.571234))
+                .andExpect(jsonPath("$.data.longitude").value(126.961234));
+        mockMvc.perform(get("/api/quests/{id}", questId).header("X-User-Key", userKey).param("locale", "en"))
+                .andExpect(jsonPath("$.data.latitude").value(37.571234));
+
+        assertThat(geocodingPort.addresses()).hasSize(3);
+    }
+
+    @Test
+    void 주소_변환에_실패한_장소는_좌표가_null이고_퀘스트는_정상_생성된다() throws Exception {
+        String userKey = newUserWithProfile("ko");
+        generator.setFixedResult(List.of(
+                FakeQuestGenerator.quest("없는-장소", Interest.FOOD, null),
+                FakeQuestGenerator.quest("ok-b", Interest.KPOP, null),
+                FakeQuestGenerator.quest("ok-c", Interest.GAME, null)));
+
+        List<Integer> ids = questIds(ensure(userKey, null).andExpect(jsonPath("$.data.length()").value(3)));
+
+        mockMvc.perform(get("/api/quests/{id}", ids.get(0)).header("X-User-Key", userKey))
+                .andExpect(jsonPath("$.data.address").value("서울특별시 서대문구 없는-장소"))
+                .andExpect(jsonPath("$.data.latitude").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.data.longitude").value(org.hamcrest.Matchers.nullValue()));
+        mockMvc.perform(get("/api/quests/{id}", ids.get(1)).header("X-User-Key", userKey))
+                .andExpect(jsonPath("$.data.latitude").value(37.571234));
+        assertThat(dailyQuestSetRepository.findByUserKeyAndQuestDate(userKey, TODAY).orElseThrow().isFallback())
+                .isFalse();
+    }
+
+    @Test
+    void 주소_변환이_제한_시간을_넘기면_좌표_없이_저장한다() throws Exception {
+        String userKey = newUserWithProfile("ko");
+        geocodingPort.setDelayMillis(3_000);
+
+        long start = System.currentTimeMillis();
+        Integer questId = questIds(ensure(userKey, null).andExpect(status().isOk())).getFirst();
+        assertThat(System.currentTimeMillis() - start).isLessThan(2_500);
+
+        mockMvc.perform(get("/api/quests/{id}", questId).header("X-User-Key", userKey))
+                .andExpect(jsonPath("$.data.address").isNotEmpty())
+                .andExpect(jsonPath("$.data.latitude").value(org.hamcrest.Matchers.nullValue()));
+    }
+
+    @Test
+    void 데모_퀘스트도_주소를_좌표로_변환한다() throws Exception {
+        String userKey = newUserWithProfile("ko");
+        generator.setFailing(true);
+
+        Integer questId = questIds(ensure(userKey, null)).getFirst();
+
+        mockMvc.perform(get("/api/quests/{id}", questId).header("X-User-Key", userKey))
+                .andExpect(jsonPath("$.data.placeName").value("영천시장"))
+                .andExpect(jsonPath("$.data.address").value("서울특별시 서대문구 통일로 189-1"))
+                .andExpect(jsonPath("$.data.latitude").value(37.571234));
     }
 
     private PlaceActivityKey recordDiary(String userKey, Integer questId, String draftId, Outcome outcome) {

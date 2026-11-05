@@ -12,11 +12,14 @@ import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import sopt.thingkerton.domain.location.model.Coordinate;
 import sopt.thingkerton.domain.profile.entity.Interest;
 
 @Getter
@@ -52,6 +55,18 @@ public class Quest {
     @Column(nullable = false, length = 255)
     private String imageRef;
 
+    /** 장소의 도로명 주소 (AI 생성값). 없으면 null */
+    @Column(length = 255)
+    private String address;
+
+    /** 주소를 네이버 Geocoding으로 변환한 위도. 변환 실패 시 null */
+    @Column(precision = 9, scale = 6)
+    private BigDecimal latitude;
+
+    /** 주소를 네이버 Geocoding으로 변환한 경도. 변환 실패 시 null */
+    @Column(precision = 9, scale = 6)
+    private BigDecimal longitude;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private QuestStatus status;
@@ -60,7 +75,8 @@ public class Quest {
     private LocalDateTime statusChangedAt;
 
     private Quest(DailyQuestSet dailySet, String placeKey, String activityKey, Interest category,
-                  int estimatedMinutes, String placeName, String imageRef, LocalDateTime createdAt) {
+                  int estimatedMinutes, String placeName, String imageRef, String address, Coordinate coordinate,
+                  LocalDateTime createdAt) {
         this.dailySet = dailySet;
         this.placeKey = placeKey;
         this.activityKey = activityKey;
@@ -68,13 +84,24 @@ public class Quest {
         this.estimatedMinutes = estimatedMinutes;
         this.placeName = placeName;
         this.imageRef = imageRef;
+        this.address = address;
+        if (coordinate != null) {
+            this.latitude = BigDecimal.valueOf(coordinate.latitude()).setScale(6, RoundingMode.HALF_UP);
+            this.longitude = BigDecimal.valueOf(coordinate.longitude()).setScale(6, RoundingMode.HALF_UP);
+        }
         this.status = QuestStatus.AVAILABLE;
         this.statusChangedAt = createdAt;
     }
 
+    /**
+     * @param address    도로명 주소. 없으면 null
+     * @param coordinate 주소를 변환한 좌표. 없으면 null
+     */
     public static Quest create(DailyQuestSet dailySet, String placeKey, String activityKey, Interest category,
-                               int estimatedMinutes, String placeName, String imageRef, LocalDateTime createdAt) {
-        return new Quest(dailySet, placeKey, activityKey, category, estimatedMinutes, placeName, imageRef, createdAt);
+                               int estimatedMinutes, String placeName, String imageRef, String address,
+                               Coordinate coordinate, LocalDateTime createdAt) {
+        return new Quest(dailySet, placeKey, activityKey, category, estimatedMinutes, placeName, imageRef, address,
+                coordinate, createdAt);
     }
 
     /**

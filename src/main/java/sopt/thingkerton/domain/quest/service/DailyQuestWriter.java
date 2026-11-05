@@ -48,6 +48,8 @@ public class DailyQuestWriter {
                     generated.estimatedMinutes(),
                     generated.placeName(),
                     questImageResolver.resolveRef(generated.category(), generated.key().activityKey()),
+                    generated.address(),
+                    generated.coordinate(),
                     now));
             questTextRepository.save(QuestText.create(quest.getId(), textLocale, generated.title(),
                     generated.reason(), generated.description(), generated.steps()));
