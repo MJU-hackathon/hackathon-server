@@ -1,8 +1,10 @@
 package sopt.thingkerton.domain.diary.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import sopt.thingkerton.domain.diary.entity.Diary;
@@ -26,4 +28,8 @@ public interface DiaryRepository extends JpaRepository<Diary, Long> {
               and d.outcome = sopt.thingkerton.domain.diary.entity.Outcome.EXPERIENCED
             """)
     List<PlaceActivityKey> findExperiencedKeys(@Param("userKey") String userKey);
+
+    @Modifying(clearAutomatically = true)
+    @Query("delete from Diary d where d.quest.id in :questIds")
+    void deleteAllByQuestIdIn(@Param("questIds") Collection<Long> questIds);
 }

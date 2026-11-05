@@ -50,6 +50,9 @@ spring:
         max-interval: 3s
 
 app:
+  dev:
+    # 개발·QA용 초기화 API(DELETE /api/dev/daily-quests/today). 운영에서는 끈다
+    reset-enabled: ${APP_DEV_RESET_ENABLED:false}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
   s3:
