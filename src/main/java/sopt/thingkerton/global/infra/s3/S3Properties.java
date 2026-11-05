@@ -1,4 +1,4 @@
-package sopt.thingkerton.global.s3;
+package sopt.thingkerton.global.infra.s3;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

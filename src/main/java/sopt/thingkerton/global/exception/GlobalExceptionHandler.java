@@ -16,7 +16,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 import sopt.thingkerton.global.code.ErrorCode;
 import sopt.thingkerton.global.code.GlobalErrorCode;
 import sopt.thingkerton.global.dto.CommonResponse;
-import sopt.thingkerton.global.s3.S3ErrorCode;
+import sopt.thingkerton.global.infra.s3.S3ErrorCode;
 
 @Slf4j
 @RestControllerAdvice

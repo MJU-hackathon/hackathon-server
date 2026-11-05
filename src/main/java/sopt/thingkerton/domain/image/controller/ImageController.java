@@ -1,4 +1,4 @@
-package sopt.thingkerton.global.s3;
+package sopt.thingkerton.domain.image.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -9,21 +9,22 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import sopt.thingkerton.domain.image.code.ImageSuccessCode;
+import sopt.thingkerton.domain.image.dto.ImageUploadResponse;
+import sopt.thingkerton.domain.image.service.ImageService;
 import sopt.thingkerton.global.dto.CommonResponse;
 
 @Tag(name = "Image", description = "이미지 업로드")
 @RestController
 @RequestMapping("/api/images")
 @RequiredArgsConstructor
-public class ImageUploadController {
+public class ImageController {
 
-    private static final String UPLOAD_DIR = "uploads";
-
-    private final S3Uploader s3Uploader;
+    private final ImageService imageService;
 
     @Operation(summary = "이미지 업로드", description = "jpg, png, webp 이미지(최대 10MB)를 S3에 업로드하고 URL을 반환합니다.")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public CommonResponse<UploadedFile> upload(@RequestPart("file") MultipartFile file) {
-        return CommonResponse.success(S3SuccessCode.IMAGE_UPLOAD_SUCCESS, s3Uploader.uploadImage(file, UPLOAD_DIR));
+    public CommonResponse<ImageUploadResponse> upload(@RequestPart("file") MultipartFile file) {
+        return CommonResponse.success(ImageSuccessCode.IMAGE_UPLOAD_SUCCESS, imageService.upload(file));
     }
 }

@@ -1,4 +1,4 @@
-package sopt.thingkerton.global.s3;
+package sopt.thingkerton.global.infra.s3;
 
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
