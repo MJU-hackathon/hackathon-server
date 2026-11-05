@@ -451,6 +451,24 @@ class QuestApiTest {
     }
 
     @Test
+    void 좌표_변환과_대표_이미지_생성은_동시에_실행된다() throws Exception {
+        String userKey = newUserWithProfile("ko");
+        geocodingPort.setDelayMillis(900);
+        imageGenerator.setDelayMillis(900);
+
+        long start = System.currentTimeMillis();
+        String body = ensure(userKey, null).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        long elapsed = System.currentTimeMillis() - start;
+
+        // 순서대로 실행하면 0.9초 + 0.9초 이상 걸린다
+        assertThat(elapsed).isLessThan(1_600);
+        assertThat((String) JsonPath.read(body, "$.data[0].imageUrl")).endsWith("/quest-images/place-a-ko-1.png");
+        Integer questId = JsonPath.read(body, "$.data[0].questId");
+        mockMvc.perform(get("/api/quests/{id}", questId).header("X-User-Key", userKey))
+                .andExpect(jsonPath("$.data.latitude").value(37.571234));
+    }
+
+    @Test
     void 데모_퀘스트는_대표_이미지를_생성하지_않고_기본_이미지를_쓴다() throws Exception {
         String userKey = newUserWithProfile("ko");
         generator.setFailing(true);
