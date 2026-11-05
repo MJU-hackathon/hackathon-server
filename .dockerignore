@@ -1,0 +1,3 @@
+# 빌드 컨텍스트에는 실행할 jar만 보낸다
+*
+!build/libs/app.jar

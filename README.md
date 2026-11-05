@@ -173,42 +173,34 @@ Verification result = aiClient.chatWithImage(
 | 워크플로우 | 트리거 | 동작 |
 |---|---|---|
 | `ci.yml` | `main` 대상 PR | `./gradlew build` (컴파일 + 테스트) |
-| `cd.yml` | `main` push, 수동 실행 | `app.jar` 빌드 → EC2 `~/hackathon-server`에 전송 → `systemctl restart hackathon` |
+| `cd.yml` | `main` push, 수동 실행 | `app.jar` 빌드 → Docker 이미지 빌드·Docker Hub push(`:커밋SHA`, `:latest`) → EC2에서 pull 후 컨테이너 교체 → 헬스체크(실패 시 이전 이미지로 롤백) |
 | `nginx.yml` | `main` push 중 `deploy/nginx/**` 변경, 수동 실행 | nginx 설정 전송 → `nginx -t` 통과 시 reload, 실패 시 이전 설정으로 복구 |
 
 ### 서버 구성
 
 ```text
-https://soptinthingji.p-e.kr ─▶ nginx :443 (Let's Encrypt) ─▶ Spring :8080 ─▶ AWS RDS MySQL
+https://soptinthingji.p-e.kr ─▶ nginx :443 (Let's Encrypt) ─▶ Docker 컨테이너 hackathon (Spring 127.0.0.1:8080) ─▶ AWS RDS MySQL
 ```
 
 | 항목 | 값 |
 |---|---|
 | 서버 | EC2 Ubuntu (`ubuntu` 사용자) |
-| 앱 경로 | `/home/ubuntu/hackathon-server/app.jar` |
-| 환경 변수 | `/home/ubuntu/hackathon-server/.env` (실행 디렉터리의 `.env`를 자동으로 읽음) |
-| 서비스 | `/etc/systemd/system/hackathon.service` |
+| 앱 | Docker 컨테이너 `hackathon` (이미지 `{DOCKERHUB_USERNAME}/hackathon-server`, Docker Hub private 저장소, `--network host`, `--restart unless-stopped`) |
+| 환경 변수 | `/home/ubuntu/hackathon-server/.env` (`docker run --env-file`로 전달. 따옴표 없는 `KEY=VALUE` 형식 유지) |
+| 이전 방식 | `hackathon.service`(systemd, `app.jar`)는 비활성화 상태로 남겨 둠. 첫 전환 실패 시 CD가 자동 복구에 사용 |
 | 리버스 프록시 | `/etc/nginx/sites-available/hackathon-server` (`sites-enabled`에 링크). 원본은 레포의 `deploy/nginx/hackathon-server.conf` |
 
-`hackathon.service`:
+컨테이너 실행 방식 (`cd.yml`이 자동으로 수행):
 
-```ini
-[Unit]
-Description=Thingkerton Spring Boot Server
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-User=ubuntu
-WorkingDirectory=/home/ubuntu/hackathon-server
-ExecStart=/usr/bin/java -jar /home/ubuntu/hackathon-server/app.jar
-Restart=on-failure
-RestartSec=5
-SuccessExitStatus=143
-
-[Install]
-WantedBy=multi-user.target
+```bash
+docker run -d --name hackathon --restart unless-stopped --network host \
+  --env-file /home/ubuntu/hackathon-server/.env -e SERVER_ADDRESS=127.0.0.1 \
+  {DOCKERHUB_USERNAME}/hackathon-server:<커밋SHA>
 ```
+
+- `--network host`: 컨테이너에서도 EC2 IAM Role(S3 업로드)을 그대로 사용합니다.
+- `SERVER_ADDRESS=127.0.0.1`: Spring은 서버 내부에서만 받고, 외부 요청은 nginx(443)를 거칩니다.
+- Docker 로그는 컨테이너당 20MB × 3개까지 보관합니다(`/etc/docker/daemon.json`).
 
 ### GitHub Secrets
 
@@ -219,16 +211,27 @@ Settings → Secrets and variables → Actions에 등록합니다. DB 접속 정
 | `EC2_HOST` | EC2 퍼블릭 IP |
 | `EC2_USERNAME` | `ubuntu` |
 | `EC2_SSH_KEY` | `.pem` 키 파일 내용 전체 |
+| `DOCKERHUB_USERNAME` | Docker Hub 아이디 |
+| `DOCKERHUB_TOKEN` | Docker Hub Access Token (Account settings → Personal access tokens, 권한 Read & Write) |
+
+Docker Hub에는 `hackathon-server` 저장소를 **private**으로 미리 만들어 둡니다. 없으면 첫 push 때 계정 기본 설정(보통 public)으로 생성됩니다.
 
 ### 운영 명령어
 
 ```bash
-sudo systemctl status hackathon      # 상태 확인
-journalctl -u hackathon -f           # 실시간 로그
-sudo systemctl restart hackathon     # 수동 재시작
+docker ps                                   # 상태 확인
+docker logs -f --tail 100 hackathon         # 실시간 로그
+docker restart hackathon                    # 수동 재시작
+docker images {DOCKERHUB_USERNAME}/hackathon-server   # 롤백 가능한 이미지 (최근 3개)
+
+# 수동 롤백: 원하는 이미지 태그로 교체
+docker rm -f hackathon && docker run -d --name hackathon --restart unless-stopped --network host \
+  --env-file /home/ubuntu/hackathon-server/.env -e SERVER_ADDRESS=127.0.0.1 \
+  {DOCKERHUB_USERNAME}/hackathon-server:<커밋SHA>
 ```
 
 - 시연 중 자동 배포를 막으려면 Actions → CD → Disable workflow로 잠시 꺼둡니다.
+
 ### nginx 설정
 
 - 설정 원본은 `deploy/nginx/hackathon-server.conf`입니다. **서버에서 직접 수정하지 말고** 이 파일을 수정해 PR로 반영합니다. 서버에서 직접 고치면 다음 적용 때 덮어써집니다.

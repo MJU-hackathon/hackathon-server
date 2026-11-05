@@ -15,6 +15,8 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/hackathon-server
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,23 +33,89 @@ jobs:
       - name: Build jar
         run: ./gradlew bootJar
 
-      - name: Copy jar to EC2
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: build/libs/app.jar
-          target: ~/hackathon-server
-          strip_components: 2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Restart application
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          IMAGE: ${{ env.IMAGE }}
+          TAG: ${{ github.sha }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          envs: IMAGE,TAG,DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
+          command_timeout: 10m
           script: |
-            sudo systemctl restart hackathon
-            sleep 15
-            sudo systemctl is-active hackathon || (sudo journalctl -u hackathon -n 50 --no-pager; exit 1)
+            set -e
+            ENV_FILE=/home/ubuntu/hackathon-server/.env
+
+            # private 저장소라 pull 때만 로그인하고 바로 로그아웃한다 (서버에 토큰을 남기지 않음)
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+            docker pull "$IMAGE:$TAG"
+            docker logout
+
+            # Spring은 127.0.0.1에서만 받는다(외부는 nginx 443 경유). host 네트워크라 EC2 IAM Role(S3)을 그대로 쓴다.
+            run_container() {
+              docker run -d --name hackathon --restart unless-stopped --network host \
+                --env-file "$ENV_FILE" -e SERVER_ADDRESS=127.0.0.1 "$1" > /dev/null
+            }
+            healthy() {
+              for i in $(seq 1 40); do
+                curl -sf -o /dev/null http://127.0.0.1:8080/v3/api-docs && return 0
+                sleep 3
+              done
+              return 1
+            }
+
+            PREV=$(docker inspect --format '{{.Config.Image}}' hackathon 2>/dev/null || true)
+
+            # 첫 전환: 기존 jar 서비스(systemd)를 끈다. 실패 시 복구용으로 unit 파일과 app.jar는 남겨 둔다.
+            if systemctl is-active --quiet hackathon; then
+              sudo systemctl stop hackathon
+              sudo systemctl disable hackathon
+            fi
+
+            docker rm -f hackathon > /dev/null 2>&1 || true
+            run_container "$IMAGE:$TAG"
+
+            if healthy; then
+              echo "배포 성공: $IMAGE:$TAG"
+              # 롤백용으로 최근 이미지 3개만 남긴다
+              docker images "$IMAGE" --format '{{.Repository}}:{{.Tag}}' | grep -v ':latest$' | tail -n +4 \
+                | xargs -r docker rmi > /dev/null 2>&1 || true
+              exit 0
+            fi
+
+            echo "헬스체크 실패. 컨테이너 로그:"
+            docker logs --tail 80 hackathon || true
+            docker rm -f hackathon > /dev/null 2>&1 || true
+            if [ -n "$PREV" ]; then
+              run_container "$PREV"
+              echo "이전 이미지로 롤백: $PREV"
+            else
+              sudo systemctl enable --now hackathon
+              echo "첫 전환 실패. 기존 systemd jar 서비스로 복구"
+            fi
+            exit 1
