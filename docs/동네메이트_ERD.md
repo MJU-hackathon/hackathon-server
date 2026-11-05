@@ -49,6 +49,9 @@ erDiagram
         int estimated_minutes
         varchar place_name "AI 생성값, 미검증"
         varchar image_ref "팀 준비 이미지 참조"
+        varchar address "AI 생성 도로명 주소, NULL 허용"
+        decimal latitude "address를 네이버 Geocoding으로 변환, 실패 시 NULL"
+        decimal longitude "address를 네이버 Geocoding으로 변환, 실패 시 NULL"
         varchar status "AVAILABLE/SKIPPED/RECORDED/EXPIRED"
         datetime status_changed_at
     }
@@ -108,3 +111,4 @@ erDiagram
 - 관심사는 API 명세서 초안의 `profiles.interests` 컬럼 대신 `profile_interests` 테이블로 분리했다. JSON 컬럼으로 두고 싶다면 이 테이블을 빼면 된다.
 - diaries의 `place_key`·`activity_key`·스냅샷은 quests에서 복사해 둔다. 제외 목록 조회를 조인 없이 하고, 작성 당시 표기를 보존하기 위해서다.
 - 데모 퀘스트는 별도 테이블 없이 코드/설정 파일에 두고, 대체 시 quests에 복사 저장한다.
+- quests의 latitude·longitude는 퀘스트 생성 시 한 번만 변환해 저장한다(상세 조회 때 외부 호출 없음).
