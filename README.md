@@ -93,6 +93,20 @@ docker compose ps           # STATUS가 healthy가 되면 준비 완료
 - 커밋: `{type}: {description} - #{issue-number}`
 - 타입: `feat`, `fix`, `refactor`, `docs`, `style`, `test`, `build`, `chore`, `ci`
 
+## 코드 리뷰 (CodeRabbit)
+
+`main` 대상 PR이 열리면 CodeRabbit이 자동으로 한국어 리뷰를 남깁니다. 설정은 `.coderabbit.yaml`에 있습니다.
+
+- Draft PR, 제목에 `WIP` 또는 `[skip review]`가 들어간 PR은 자동 리뷰를 건너뜁니다.
+- PR 코멘트로 CodeRabbit에게 요청할 수 있습니다.
+
+| 명령 | 동작 |
+|---|---|
+| `@coderabbitai review` | 변경분 리뷰 |
+| `@coderabbitai full review` | 전체 다시 리뷰 |
+| `@coderabbitai pause` / `resume` | 자동 리뷰 일시 중지 / 재개 |
+| `@coderabbitai resolve` | 리뷰 코멘트 모두 resolve |
+
 ## 이미지 업로드 (S3)
 
 | 항목 | 값 |
