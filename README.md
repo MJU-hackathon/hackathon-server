@@ -174,6 +174,7 @@ Verification result = aiClient.chatWithImage(
 |---|---|---|
 | `ci.yml` | `main` 대상 PR | `./gradlew build` (컴파일 + 테스트) |
 | `cd.yml` | `main` push, 수동 실행 | `app.jar` 빌드 → EC2 `~/hackathon-server`에 전송 → `systemctl restart hackathon` |
+| `nginx.yml` | `main` push 중 `deploy/nginx/**` 변경, 수동 실행 | nginx 설정 전송 → `nginx -t` 통과 시 reload, 실패 시 이전 설정으로 복구 |
 
 ### 서버 구성
 
@@ -187,7 +188,7 @@ https://soptinthingji.p-e.kr ─▶ nginx :443 (Let's Encrypt) ─▶ Spring :80
 | 앱 경로 | `/home/ubuntu/hackathon-server/app.jar` |
 | 환경 변수 | `/home/ubuntu/hackathon-server/.env` (실행 디렉터리의 `.env`를 자동으로 읽음) |
 | 서비스 | `/etc/systemd/system/hackathon.service` |
-| 리버스 프록시 | `/etc/nginx/sites-enabled/hackathon-server` |
+| 리버스 프록시 | `/etc/nginx/sites-available/hackathon-server` (`sites-enabled`에 링크). 원본은 레포의 `deploy/nginx/hackathon-server.conf` |
 
 `hackathon.service`:
 
@@ -228,4 +229,10 @@ sudo systemctl restart hackathon     # 수동 재시작
 ```
 
 - 시연 중 자동 배포를 막으려면 Actions → CD → Disable workflow로 잠시 꺼둡니다.
-- nginx 기본 업로드 제한은 1MB입니다. 파일 업로드가 필요하면 `client_max_body_size`를 설정합니다.
+### nginx 설정
+
+- 설정 원본은 `deploy/nginx/hackathon-server.conf`입니다. **서버에서 직접 수정하지 말고** 이 파일을 수정해 PR로 반영합니다. 서버에서 직접 고치면 다음 적용 때 덮어써집니다.
+- main에 머지되면 `nginx.yml`이 서버에 복사하고 `nginx -t`로 검사한 뒤 reload합니다. 검사에 실패하면 이전 설정으로 되돌리고 워크플로우가 실패합니다.
+- 백업은 서버 `~/hackathon-server/nginx/backup/`에 최근 5개를 남깁니다.
+- 업로드 제한은 `client_max_body_size 10M`입니다 (nginx 기본값은 1MB).
+- `# managed by Certbot` 줄(SSL 인증서 경로 등)은 Certbot이 추가한 내용이므로 그대로 둡니다. 인증서 갱신은 서버의 `certbot.timer`가 처리합니다.
