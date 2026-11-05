@@ -1,0 +1,63 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit 설정: https://docs.coderabbit.ai/getting-started/configure-coderabbit
+
+language: ko-KR
+tone_instructions: "친절하지만 간결하게, 근거와 함께 개선 방법을 제안해 주세요."
+early_access: false
+
+reviews:
+  profile: chill                 # chill: 핵심 위주 / assertive: 사소한 것까지 지적
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: true
+  sequence_diagrams: true
+  changed_files_summary: true
+
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+    ignore_title_keywords:
+      - "WIP"
+      - "[skip review]"
+
+  path_filters:
+    - "!**/build/**"
+    - "!**/.gradle/**"
+    - "!**/.idea/**"
+    - "!**/.omc/**"
+    - "!gradle/wrapper/**"
+    - "!gradlew"
+    - "!gradlew.bat"
+
+  path_instructions:
+    - path: "src/main/java/**/*.java"
+      instructions: |
+        Spring Boot 4 / Java 21 기준으로 리뷰해 주세요.
+        - 계층 분리(controller → service → repository)와 책임이 적절한지
+        - 트랜잭션 범위(@Transactional, readOnly)와 JPA N+1 문제
+        - 입력값 검증(@Valid)과 예외 처리 일관성
+        - 민감 정보(키, 비밀번호)가 코드나 로그에 노출되지 않는지
+    - path: "src/test/**/*.java"
+      instructions: |
+        테스트가 의도를 명확히 드러내는지, 경계값과 실패 케이스를 다루는지 확인해 주세요.
+    - path: "src/main/resources/**"
+      instructions: |
+        설정값에 비밀 정보가 하드코딩되지 않고 환경 변수로 주입되는지 확인해 주세요.
+    - path: ".github/workflows/**"
+      instructions: |
+        최소 권한(permissions), 시크릿 노출 여부, 액션 버전 고정 여부를 확인해 주세요.
+
+  tools:
+    gitleaks:
+      enabled: true
+    actionlint:
+      enabled: true
+    yamllint:
+      enabled: true
+
+chat:
+  auto_reply: true
