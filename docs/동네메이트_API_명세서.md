@@ -270,7 +270,8 @@ WF-01 '회원가입'은 인증이 아니라 프로필 설정이다. 최초 설�
 | 400 | PHOTO_REQUIRED | 사진 누락 또는 2장 이상 |
 | 400 | OUTCOME_REQUIRED | outcome 누락 |
 | 400 | MEMO_TOO_LONG | 50자 초과 |
-| 400 | INVALID_PHOTO | 형식·크기 위반 |
+| 400 | INVALID_PHOTO | 형식 위반 |
+| 413 | FILE_TOO_LARGE | 10MB 초과 (서버 multipart 제한에서 먼저 거부, `S3ErrorCode`) |
 | 404 | QUEST_NOT_FOUND | 없거나 본인 묶음이 아님 |
 | 409 | QUEST_NOT_AVAILABLE | 패스된 퀘스트, 또는 자정 예외에 해당하지 않는 종료 퀘스트 |
 | 409 | ALREADY_RECORDED | 다른 draftId로 이미 기록된 퀘스트 |

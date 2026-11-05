@@ -10,7 +10,11 @@ import sopt.thingkerton.domain.quest.entity.PlaceActivityKey;
 
 public interface DiaryRepository extends JpaRepository<Diary, Long> {
 
-    Optional<Diary> findByDraftId(String draftId);
+    @Query("select d from Diary d join fetch d.quest where d.draftId = :draftId")
+    Optional<Diary> findWithQuestByDraftId(@Param("draftId") String draftId);
+
+    @Query("select d from Diary d join fetch d.quest where d.userKey = :userKey order by d.createdAt desc, d.id desc")
+    List<Diary> findAllWithQuestByUserKey(@Param("userKey") String userKey);
 
     /**
      * 사용자가 실제로 경험한(EXPERIENCED) 장소+활동 조합. 다음 퀘스트 생성에서 제외한다.
