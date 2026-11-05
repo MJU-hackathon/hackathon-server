@@ -79,48 +79,59 @@ CORS_ALLOWED_ORIGINS=http://localhost:3000
 | 워크플로우 | 트리거 | 동작 |
 |---|---|---|
 | `ci.yml` | `main` 대상 PR | `./gradlew build` (컴파일 + 테스트) |
-| `cd.yml` | `main` push, 수동 실행 | `app.jar` 빌드 → EC2 `~/app`에 전송 → `systemctl restart thingkerton` |
+| `cd.yml` | `main` push, 수동 실행 | `app.jar` 빌드 → EC2 `~/hackathon-server`에 전송 → `systemctl restart hackathon` |
 
-### EC2 최초 세팅 (1회)
+### 서버 구성
 
-1. 보안 그룹에서 22(SSH), 8080 포트를 엽니다.
-2. Java 21과 MySQL을 설치합니다. (Ubuntu 기준)
-
-```bash
-sudo apt update && sudo apt install -y openjdk-21-jre-headless mysql-server
-mkdir -p ~/app
+```text
+https://soptinthingji.p-e.kr ─▶ nginx :443 (Let's Encrypt) ─▶ Spring :8080 ─▶ AWS RDS MySQL
 ```
 
-3. `~/app/.env`를 작성합니다. 애플리케이션이 실행 디렉터리의 `.env`를 자동으로 읽습니다.
-4. `/etc/systemd/system/thingkerton.service`를 생성합니다. (`ubuntu`는 실제 사용자명으로 변경)
+| 항목 | 값 |
+|---|---|
+| 서버 | EC2 Ubuntu (`ubuntu` 사용자) |
+| 앱 경로 | `/home/ubuntu/hackathon-server/app.jar` |
+| 환경 변수 | `/home/ubuntu/hackathon-server/.env` (실행 디렉터리의 `.env`를 자동으로 읽음) |
+| 서비스 | `/etc/systemd/system/hackathon.service` |
+| 리버스 프록시 | `/etc/nginx/sites-enabled/hackathon-server` |
+
+`hackathon.service`:
 
 ```ini
 [Unit]
-Description=Thingkerton Server
-After=network.target mysql.service
+Description=Thingkerton Spring Boot Server
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 User=ubuntu
-WorkingDirectory=/home/ubuntu/app
-ExecStart=/usr/bin/java -jar /home/ubuntu/app/app.jar
-Restart=always
+WorkingDirectory=/home/ubuntu/hackathon-server
+ExecStart=/usr/bin/java -jar /home/ubuntu/hackathon-server/app.jar
+Restart=on-failure
+RestartSec=5
+SuccessExitStatus=143
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-```bash
-sudo systemctl daemon-reload && sudo systemctl enable thingkerton
-```
-
 ### GitHub Secrets
 
-Settings → Secrets and variables → Actions에 등록합니다.
+Settings → Secrets and variables → Actions에 등록합니다. DB 접속 정보는 서버의 `.env`에만 두고 GitHub에는 등록하지 않습니다.
 
 | 이름 | 값 |
 |---|---|
-| `EC2_HOST` | EC2 퍼블릭 IP 또는 도메인 |
-| `EC2_USERNAME` | `ubuntu` (Amazon Linux는 `ec2-user`) |
+| `EC2_HOST` | EC2 퍼블릭 IP |
+| `EC2_USERNAME` | `ubuntu` |
 | `EC2_SSH_KEY` | `.pem` 키 파일 내용 전체 |
 
-배포 상태는 EC2에서 `sudo systemctl status thingkerton`, 로그는 `journalctl -u thingkerton -f`로 확인합니다.
+### 운영 명령어
+
+```bash
+sudo systemctl status hackathon      # 상태 확인
+journalctl -u hackathon -f           # 실시간 로그
+sudo systemctl restart hackathon     # 수동 재시작
+```
+
+- 시연 중 자동 배포를 막으려면 Actions → CD → Disable workflow로 잠시 꺼둡니다.
+- nginx 기본 업로드 제한은 1MB입니다. 파일 업로드가 필요하면 `client_max_body_size`를 설정합니다.

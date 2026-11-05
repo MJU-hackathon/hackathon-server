@@ -38,7 +38,7 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           source: build/libs/app.jar
-          target: ~/app
+          target: ~/hackathon-server
           strip_components: 2
 
       - name: Restart application
@@ -48,6 +48,6 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            sudo systemctl restart thingkerton
+            sudo systemctl restart hackathon
             sleep 15
-            sudo systemctl is-active thingkerton || (sudo journalctl -u thingkerton -n 50 --no-pager; exit 1)
+            sudo systemctl is-active hackathon || (sudo journalctl -u hackathon -n 50 --no-pager; exit 1)
