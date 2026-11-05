@@ -18,23 +18,29 @@ import sopt.thingkerton.global.time.SeoulTime;
  * multipart/form-data 일기 저장 요청. 누락 시 명세서의 에러 코드로 응답하기 위해 모든 파트를 선택값으로 받고
  * {@link #toCommand()}에서 검증한다.
  */
+@Schema(description = "일기 저장 요청 (multipart/form-data 파트)")
 public record DiaryCreateRequest(
-        @Schema(description = "사진 1장 (jpeg/png/heic, 최대 10MB)", type = "string", format = "binary")
+        @Schema(description = "경험 사진 정확히 1장. jpeg · png · heic, 최대 10MB", type = "string", format = "binary",
+                requiredMode = Schema.RequiredMode.REQUIRED)
         List<MultipartFile> photo,
 
-        @Schema(example = "1201")
+        @Schema(description = "기록할 퀘스트 ID", example = "2", requiredMode = Schema.RequiredMode.REQUIRED)
         Long questId,
 
-        @Schema(description = "EXPERIENCED / NOT_EXPERIENCED", example = "EXPERIENCED")
+        @Schema(description = "경험 결과. 사용자가 직접 선택 (해봤어요! / 이번엔 못 했어요)", example = "EXPERIENCED",
+                allowableValues = {"EXPERIENCED", "NOT_EXPERIENCED"}, requiredMode = Schema.RequiredMode.REQUIRED)
         String outcome,
 
-        @Schema(description = "최대 50자, 공란 허용", example = "시장이 문을 닫아 다음에 다시 오기로 했다.")
+        @Schema(description = "한 줄 메모. 최대 50자, 공란 허용(공란은 null로 저장), 번역하지 않음", example = "처음 먹어본 호떡, 생각보다 달았다.",
+                maxLength = 50, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
         String memo,
 
-        @Schema(description = "촬영 시작 시 앱이 만든 UUID (중복 제출 방지)", example = "5f1c2a9e-8f3b-4e4f-9d61-2b7c0e9a1d10")
+        @Schema(description = "'사진으로 기록하기'를 누를 때 앱이 만든 UUID. 같은 값으로 재제출하면 기존 일기 반환(중복 방지), 최대 64자",
+                example = "5f1c2a9e-8f3b-4e4f-9d61-2b7c0e9a1d10", maxLength = 64, requiredMode = Schema.RequiredMode.REQUIRED)
         String draftId,
 
-        @Schema(description = "촬영 시작 시각 ISO 8601", example = "2026-11-05T23:58:00+09:00")
+        @Schema(description = "'사진으로 기록하기'를 누른 시각, ISO 8601. 오프셋이 없으면 Asia/Seoul로 해석. 자정 예외 판정에 사용",
+                example = "2026-11-05T23:58:00+09:00", requiredMode = Schema.RequiredMode.REQUIRED)
         String draftStartedAt
 ) {
 
