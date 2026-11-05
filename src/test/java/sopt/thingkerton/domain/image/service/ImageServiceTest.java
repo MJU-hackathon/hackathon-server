@@ -6,7 +6,6 @@ import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
-import sopt.thingkerton.domain.image.dto.ImageUploadResponse;
 import sopt.thingkerton.global.infra.s3.S3Uploader;
 import sopt.thingkerton.global.infra.s3.UploadedFile;
 
@@ -16,13 +15,13 @@ class ImageServiceTest {
     private final ImageService imageService = new ImageService(s3Uploader);
 
     @Test
-    void uploads_디렉터리에_업로드하고_URL만_응답한다() {
+    void uploads_디렉터리에_업로드하고_업로드_결과를_반환한다() {
         MockMultipartFile file = new MockMultipartFile("file", "a.jpg", "image/jpeg", new byte[]{1});
-        when(s3Uploader.uploadImage(file, "uploads"))
-                .thenReturn(new UploadedFile("uploads/abc.jpg", "https://bucket/uploads/abc.jpg"));
+        UploadedFile uploaded = new UploadedFile("uploads/abc.jpg", "https://bucket/uploads/abc.jpg");
+        when(s3Uploader.uploadImage(file, "uploads")).thenReturn(uploaded);
 
-        ImageUploadResponse response = imageService.upload(file);
+        UploadedFile result = imageService.upload(file);
 
-        assertThat(response.url()).isEqualTo("https://bucket/uploads/abc.jpg");
+        assertThat(result).isEqualTo(uploaded);
     }
 }
