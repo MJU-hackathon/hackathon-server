@@ -173,7 +173,7 @@ Verification result = aiClient.chatWithImage(
 | 워크플로우 | 트리거 | 동작 |
 |---|---|---|
 | `ci.yml` | `main` 대상 PR | `./gradlew build` (컴파일 + 테스트) |
-| `cd.yml` | `main` push, 수동 실행 | `app.jar` 빌드 → Docker 이미지 빌드·GHCR push(`:커밋SHA`, `:latest`) → EC2에서 pull 후 컨테이너 교체 → 헬스체크(실패 시 이전 이미지로 롤백) |
+| `cd.yml` | `main` push, 수동 실행 | `app.jar` 빌드 → Docker 이미지 빌드·Docker Hub push(`:커밋SHA`, `:latest`) → EC2에서 pull 후 컨테이너 교체 → 헬스체크(실패 시 이전 이미지로 롤백) |
 
 ### 서버 구성
 
@@ -184,7 +184,7 @@ https://soptinthingji.p-e.kr ─▶ nginx :443 (Let's Encrypt) ─▶ Docker 컨
 | 항목 | 값 |
 |---|---|
 | 서버 | EC2 Ubuntu (`ubuntu` 사용자) |
-| 앱 | Docker 컨테이너 `hackathon` (이미지 `ghcr.io/mju-hackathon/hackathon-server`, `--network host`, `--restart unless-stopped`) |
+| 앱 | Docker 컨테이너 `hackathon` (이미지 `{DOCKERHUB_USERNAME}/hackathon-server`, Docker Hub private 저장소, `--network host`, `--restart unless-stopped`) |
 | 환경 변수 | `/home/ubuntu/hackathon-server/.env` (`docker run --env-file`로 전달. 따옴표 없는 `KEY=VALUE` 형식 유지) |
 | 이전 방식 | `hackathon.service`(systemd, `app.jar`)는 비활성화 상태로 남겨 둠. 첫 전환 실패 시 CD가 자동 복구에 사용 |
 | 리버스 프록시 | `/etc/nginx/sites-enabled/hackathon-server` |
@@ -194,7 +194,7 @@ https://soptinthingji.p-e.kr ─▶ nginx :443 (Let's Encrypt) ─▶ Docker 컨
 ```bash
 docker run -d --name hackathon --restart unless-stopped --network host \
   --env-file /home/ubuntu/hackathon-server/.env -e SERVER_ADDRESS=127.0.0.1 \
-  ghcr.io/mju-hackathon/hackathon-server:<커밋SHA>
+  {DOCKERHUB_USERNAME}/hackathon-server:<커밋SHA>
 ```
 
 - `--network host`: 컨테이너에서도 EC2 IAM Role(S3 업로드)을 그대로 사용합니다.
@@ -210,6 +210,10 @@ Settings → Secrets and variables → Actions에 등록합니다. DB 접속 정
 | `EC2_HOST` | EC2 퍼블릭 IP |
 | `EC2_USERNAME` | `ubuntu` |
 | `EC2_SSH_KEY` | `.pem` 키 파일 내용 전체 |
+| `DOCKERHUB_USERNAME` | Docker Hub 아이디 |
+| `DOCKERHUB_TOKEN` | Docker Hub Access Token (Account settings → Personal access tokens, 권한 Read & Write) |
+
+Docker Hub에는 `hackathon-server` 저장소를 **private**으로 미리 만들어 둡니다. 없으면 첫 push 때 계정 기본 설정(보통 public)으로 생성됩니다.
 
 ### 운영 명령어
 
@@ -217,12 +221,12 @@ Settings → Secrets and variables → Actions에 등록합니다. DB 접속 정
 docker ps                                   # 상태 확인
 docker logs -f --tail 100 hackathon         # 실시간 로그
 docker restart hackathon                    # 수동 재시작
-docker images ghcr.io/mju-hackathon/hackathon-server   # 롤백 가능한 이미지 (최근 3개)
+docker images {DOCKERHUB_USERNAME}/hackathon-server   # 롤백 가능한 이미지 (최근 3개)
 
 # 수동 롤백: 원하는 이미지 태그로 교체
 docker rm -f hackathon && docker run -d --name hackathon --restart unless-stopped --network host \
   --env-file /home/ubuntu/hackathon-server/.env -e SERVER_ADDRESS=127.0.0.1 \
-  ghcr.io/mju-hackathon/hackathon-server:<커밋SHA>
+  {DOCKERHUB_USERNAME}/hackathon-server:<커밋SHA>
 ```
 
 - 시연 중 자동 배포를 막으려면 Actions → CD → Disable workflow로 잠시 꺼둡니다.

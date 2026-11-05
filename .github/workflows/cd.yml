@@ -7,18 +7,16 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 concurrency:
   group: deploy
   cancel-in-progress: false
 
-env:
-  IMAGE: ghcr.io/mju-hackathon/hackathon-server
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/hackathon-server
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,12 +36,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GHCR
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push image
         uses: docker/build-push-action@v6
@@ -62,21 +59,22 @@ jobs:
         env:
           IMAGE: ${{ env.IMAGE }}
           TAG: ${{ github.sha }}
-          GHCR_USER: ${{ github.actor }}
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: IMAGE,TAG,GHCR_USER,GHCR_TOKEN
+          envs: IMAGE,TAG,DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
           command_timeout: 10m
           script: |
             set -e
             ENV_FILE=/home/ubuntu/hackathon-server/.env
 
-            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+            # private 저장소라 pull 때만 로그인하고 바로 로그아웃한다 (서버에 토큰을 남기지 않음)
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
             docker pull "$IMAGE:$TAG"
-            docker logout ghcr.io
+            docker logout
 
             # Spring은 127.0.0.1에서만 받는다(외부는 nginx 443 경유). host 네트워크라 EC2 IAM Role(S3)을 그대로 쓴다.
             run_container() {
