@@ -31,6 +31,10 @@ dependencies {
     implementation platform('software.amazon.awssdk:bom:2.57.9')
     implementation 'software.amazon.awssdk:s3'
 
+    // AI (Gemini)
+    implementation platform('org.springframework.ai:spring-ai-bom:2.0.2')
+    implementation 'org.springframework.ai:spring-ai-starter-model-google-genai'
+
     // API Documentation
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.2.0'
 

@@ -7,6 +7,10 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
+  ai:
+    google:
+      genai:
+        api-key: test-api-key
 
 app:
   naver-maps:

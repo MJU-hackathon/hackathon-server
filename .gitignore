@@ -40,3 +40,7 @@ out/
 .env
 .env.*
 !.env.example
+
+# Claude
+CLAUDE.md
+.omc/

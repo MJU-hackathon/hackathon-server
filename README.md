@@ -107,6 +107,46 @@ docker compose ps           # STATUS가 healthy가 되면 준비 완료
 | `@coderabbitai pause` / `resume` | 자동 리뷰 일시 중지 / 재개 |
 | `@coderabbitai resolve` | 리뷰 코멘트 모두 resolve |
 
+## AI 연동 (Gemini)
+
+Spring AI + Google Gemini API를 사용합니다. 공통 진입점은 `global/infra/ai/AiClient`이며, 도메인 코드는 Spring AI에 직접 의존하지 않고 `AiClient`만 사용합니다.
+
+### API 키 발급
+
+1. https://aistudio.google.com 접속 → **Get API key** → **Create API key**
+2. 결제 정보를 등록하지 않으면 무료 등급으로 유지됩니다.
+3. `.env`에 추가합니다. (키는 커밋하지 않습니다)
+
+```
+GEMINI_API_KEY=발급받은키
+# GEMINI_CHAT_MODEL=gemini-3.6-flash   # 생략 시 기본값
+```
+
+키가 없어도 서버는 실행되지만 AI 호출은 `AI_CALL_FAILED`로 실패합니다. 배포 서버는 EC2의 `.env`에도 추가해야 합니다.
+
+### 사용법
+
+| 메서드 | 용도 |
+|---|---|
+| `chat(systemPrompt, message)` | 텍스트 대화 |
+| `chatWithImage(systemPrompt, message, AiImage)` | 이미지 포함 대화 (인증 사진 확인 등) |
+| `chat(systemPrompt, message, Type.class)` | 응답을 record 등으로 변환 (JSON) |
+| `chatWithImage(systemPrompt, message, AiImage, Type.class)` | 이미지 + 구조화 응답 |
+
+```java
+record Verification(boolean passed, String reason) {}
+
+Verification result = aiClient.chatWithImage(
+        "너는 퀘스트 인증 심사관이야.",
+        "이 사진에 파전이 있는지 판정해줘.",
+        AiImage.from(file),
+        Verification.class);
+```
+
+- 요청 한도 초과 시 `AI_RATE_LIMITED`(429), 그 외 실패 시 `AI_CALL_FAILED`(503)
+- 연동 확인용 임시 API: Swagger의 **AI Test** (`POST /api/ai/test`, `POST /api/ai/test/image`)
+- 테스트는 실제 Gemini를 호출하지 않으므로 키 없이 통과합니다.
+
 ## 이미지 업로드 (S3)
 
 | 항목 | 값 |
