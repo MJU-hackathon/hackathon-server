@@ -9,6 +9,9 @@ spring:
       ddl-auto: create-drop
 
 app:
+  naver-maps:
+    api-key-id: test-id
+    api-key: test-key
   s3:
     bucket: test-bucket
     region: ap-southeast-2
