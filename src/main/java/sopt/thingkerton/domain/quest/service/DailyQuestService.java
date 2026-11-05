@@ -7,6 +7,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -90,12 +92,13 @@ public class DailyQuestService {
             quests = demoQuestProvider.getDemoQuests();
             textLocale = DemoQuestProvider.DEMO_LOCALE;
         }
-        // 장소 주소 → 좌표 (생성 시 한 번만, 실패하면 좌표 없이 저장)
-        quests = questGeocoder.attachCoordinates(quests);
-        // 대표 이미지 AI 생성 (생성 시 한 번만, 데모 퀘스트는 생성하지 않음. 실패하면 카테고리 기본 이미지)
-        if (!isFallback) {
-            quests = questImageAttacher.attachImages(quests);
-        }
+        // 대표 이미지 AI 생성과 장소 주소 → 좌표 변환은 서로 무관하므로 동시에 실행한다 (응답 시간 = 둘 중 긴 쪽)
+        // 이미지: 데모 퀘스트는 생성하지 않음, 실패하면 카테고리 기본 이미지 / 좌표: 실패하면 좌표 없이 저장
+        CompletableFuture<List<GeneratedQuest>> withImages = isFallback
+                ? CompletableFuture.completedFuture(quests)
+                : questImageAttacher.attachImagesAsync(quests);
+        List<GeneratedQuest> withCoordinates = questGeocoder.attachCoordinates(quests);
+        quests = mergeImageRefs(withCoordinates, withImages.join());
 
         try {
             dailyQuestWriter.save(profile.getUserKey(), today, latitude, longitude, interests, isFallback, quests,
@@ -107,21 +110,34 @@ public class DailyQuestService {
     }
 
     /**
+     * 좌표를 붙인 목록에 이미지 참조를 합친다. 두 목록은 같은 퀘스트를 같은 순서로 담고 있다.
+     */
+    private List<GeneratedQuest> mergeImageRefs(List<GeneratedQuest> withCoordinates, List<GeneratedQuest> withImages) {
+        return IntStream.range(0, withCoordinates.size())
+                .mapToObj(i -> withCoordinates.get(i).withImageRef(withImages.get(i).imageRef()))
+                .toList();
+    }
+
+    /**
      * @return 제외 조합을 걸러낸 퀘스트 3개. 생성 실패·시간 초과·개수 부족이면 null (데모로 대체)
      */
     private List<GeneratedQuest> generate(QuestGenerationCommand command) {
+        long startedAt = System.currentTimeMillis();
         try {
             List<GeneratedQuest> quests = aiTimeLimiter.call(() -> questGenerator.generate(command),
                             questProperties.generationTimeout()).stream()
                     .filter(quest -> !command.excludedKeys().contains(quest.key()))
                     .toList();
+            // 제한 시간(QUEST_GENERATION_TIMEOUT) 조정용
+            log.info("Quest generation took {}ms", System.currentTimeMillis() - startedAt);
             if (quests.size() != QuestGenerator.QUEST_COUNT) {
                 log.warn("Quest generation returned {} usable quests. Falling back to demo.", quests.size());
                 return null;
             }
             return quests;
         } catch (RuntimeException exception) {
-            log.warn("Quest generation failed. Falling back to demo.", exception);
+            log.warn("Quest generation failed after {}ms. Falling back to demo.",
+                    System.currentTimeMillis() - startedAt, exception);
             return null;
         }
     }
