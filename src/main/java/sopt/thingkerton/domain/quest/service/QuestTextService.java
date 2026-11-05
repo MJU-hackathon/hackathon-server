@@ -13,9 +13,11 @@ import sopt.thingkerton.domain.profile.entity.AppLocale;
 import sopt.thingkerton.domain.quest.entity.Quest;
 import sopt.thingkerton.domain.quest.entity.QuestText;
 import sopt.thingkerton.domain.quest.repository.QuestTextRepository;
+import sopt.thingkerton.global.infra.ai.AiTimeLimiter;
 
 /**
  * 퀘스트 설명을 요청 언어로 제공한다. 없으면 기존 설명을 번역해 캐시한다.
+ * 번역이 실패하거나 제한 시간을 넘기면 원문 설명을 반환하고 캐시하지 않는다(다음 요청에서 다시 번역).
  * <p>
  * 번역(LLM 호출)을 트랜잭션 밖에서 하기 위해 클래스에 트랜잭션을 걸지 않는다. 저장은 Repository 트랜잭션으로 처리한다.
  */
@@ -26,6 +28,8 @@ public class QuestTextService {
 
     private final QuestTextRepository questTextRepository;
     private final QuestTranslator questTranslator;
+    private final AiTimeLimiter aiTimeLimiter;
+    private final QuestProperties questProperties;
 
     /**
      * @return questId → 요청 언어 설명. 번역에 실패한 퀘스트는 원문 설명
@@ -59,7 +63,8 @@ public class QuestTextService {
     private List<QuestText> translate(List<QuestText> sources, AppLocale locale) {
         List<TranslatedText> translated;
         try {
-            translated = questTranslator.translate(sources, locale);
+            translated = aiTimeLimiter.call(() -> questTranslator.translate(sources, locale),
+                    questProperties.translationTimeout());
         } catch (RuntimeException exception) {
             log.warn("Quest translation failed. locale={}, questIds={}", locale.getCode(),
                     sources.stream().map(QuestText::getQuestId).toList(), exception);

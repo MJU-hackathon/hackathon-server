@@ -13,10 +13,19 @@ import sopt.thingkerton.domain.quest.service.TranslatedText;
 public class FakeQuestTranslator implements QuestTranslator {
 
     private final AtomicInteger calls = new AtomicInteger();
+    private volatile long delayMillis;
 
     @Override
     public List<TranslatedText> translate(List<QuestText> sources, AppLocale target) {
         calls.incrementAndGet();
+        if (delayMillis > 0) {
+            try {
+                Thread.sleep(delayMillis);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException(exception);
+            }
+        }
         return sources.stream()
                 .map(source -> new TranslatedText(
                         relabel(source.getTitle(), target),
@@ -30,8 +39,13 @@ public class FakeQuestTranslator implements QuestTranslator {
         return calls.get();
     }
 
+    public void setDelayMillis(long delayMillis) {
+        this.delayMillis = delayMillis;
+    }
+
     public void reset() {
         calls.set(0);
+        delayMillis = 0;
     }
 
     private String relabel(String text, AppLocale target) {

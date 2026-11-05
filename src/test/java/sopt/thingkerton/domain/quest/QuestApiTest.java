@@ -293,6 +293,39 @@ class QuestApiTest {
         assertThat(set.isFallback()).isTrue();
     }
 
+    @Test
+    void 생성이_제한_시간을_넘기면_기다리지_않고_데모_퀘스트로_대체한다() throws Exception {
+        String userKey = newUserWithProfile("ko");
+        generator.setDelayMillis(3_000);
+
+        long start = System.currentTimeMillis();
+        ensure(userKey, null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(3))
+                .andExpect(jsonPath("$.data[0].placeName").value("영천시장"));
+        long elapsed = System.currentTimeMillis() - start;
+
+        assertThat(elapsed).isLessThan(2_500);
+        assertThat(dailyQuestSetRepository.findByUserKeyAndQuestDate(userKey, TODAY).orElseThrow().isFallback())
+                .isTrue();
+    }
+
+    @Test
+    void 번역이_제한_시간을_넘기면_원문을_반환하고_다음_요청에서_다시_번역한다() throws Exception {
+        String userKey = newUserWithProfile("ko");
+        ensure(userKey, null);
+        translator.setDelayMillis(3_000);
+
+        today(userKey, "en")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].title").value(org.hamcrest.Matchers.startsWith("[ko]")));
+
+        translator.setDelayMillis(0);
+        today(userKey, "en")
+                .andExpect(jsonPath("$.data[0].title").value(org.hamcrest.Matchers.startsWith("[en]")));
+        assertThat(translator.calls()).isEqualTo(2);
+    }
+
     private PlaceActivityKey recordDiary(String userKey, Integer questId, String draftId, Outcome outcome) {
         return transactionTemplate.execute(status -> {
             Quest quest = questRepository.findWithSetById(questId.longValue()).orElseThrow();

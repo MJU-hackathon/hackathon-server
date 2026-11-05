@@ -36,6 +36,8 @@ spring:
           options:
             model: ${GEMINI_CHAT_MODEL:gemini-3.6-flash}
             temperature: 0.7
+            # 생각 단계가 길면 퀘스트 생성이 수십 초 걸린다. 응답 속도를 위해 낮게 둔다 (minimal/low/medium/high)
+            thinking-level: ${GEMINI_THINKING_LEVEL:low}
     model:
       # 채팅만 사용. 임베딩·이미지 생성 모델은 만들지 않는다
       embedding:
@@ -54,6 +56,9 @@ app:
     bucket: ${S3_BUCKET:mju-hackathon-photos-2026}
     region: ${S3_REGION:ap-southeast-2}
   quest:
+    # AI 호출 제한 시간. 생성은 넘으면 데모 퀘스트로, 번역은 넘으면 원문으로 응답한다
+    generation-timeout: ${QUEST_GENERATION_TIMEOUT:15s}
+    translation-timeout: ${QUEST_TRANSLATION_TIMEOUT:10s}
     # TODO: 팀이 준비한 퀘스트 대표 이미지 경로로 교체 ({base-url}/{카테고리}.jpg)
     image-base-url: ${QUEST_IMAGE_BASE_URL:https://cdn.example.com/quest-images}
   naver-maps:
