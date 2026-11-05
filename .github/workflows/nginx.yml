@@ -1,0 +1,68 @@
+name: Nginx
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - deploy/nginx/**
+      - .github/workflows/nginx.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nginx
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Copy nginx config to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: deploy/nginx/hackathon-server.conf
+          target: ~/hackathon-server/nginx
+          strip_components: 2
+
+      - name: Validate and reload nginx
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+            NEW=~/hackathon-server/nginx/hackathon-server.conf
+            TARGET=/etc/nginx/sites-available/hackathon-server
+            BACKUP_DIR=~/hackathon-server/nginx/backup
+            mkdir -p "$BACKUP_DIR"
+
+            if sudo cmp -s "$NEW" "$TARGET"; then
+              echo "변경 사항 없음"
+              exit 0
+            fi
+
+            BACKUP="$BACKUP_DIR/hackathon-server.$(date +%Y%m%d%H%M%S)"
+            sudo cp "$TARGET" "$BACKUP"
+            sudo cp "$NEW" "$TARGET"
+
+            if sudo nginx -t; then
+              sudo systemctl reload nginx
+              echo "적용 완료 (백업: $BACKUP)"
+            else
+              echo "설정 오류. 이전 설정으로 복구합니다."
+              sudo cp "$BACKUP" "$TARGET"
+              sudo nginx -t
+              exit 1
+            fi
+
+            # 백업은 최근 5개만 유지
+            ls -1t "$BACKUP_DIR"/hackathon-server.* | tail -n +6 | xargs -r rm -f
