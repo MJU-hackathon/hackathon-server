@@ -8,6 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -51,6 +52,18 @@ class S3UploaderTest {
         assertThat(result.key()).startsWith("uploads/").endsWith(".jpg").isEqualTo(request.key());
         assertThat(result.url())
                 .isEqualTo("https://test-bucket.s3.ap-southeast-2.amazonaws.com/" + result.key());
+    }
+
+    @Test
+    void 허용_형식을_지정하면_HEIC도_업로드한다() {
+        MockMultipartFile file = new MockMultipartFile("file", "photo.heic", "image/heic", new byte[]{1, 2, 3});
+
+        UploadedFile result = s3Uploader.uploadImage(file, "diaries/u1", Set.of("image/jpeg", "image/heic"));
+
+        assertThat(result.key()).startsWith("diaries/u1/").endsWith(".heic");
+        assertThatThrownBy(() -> s3Uploader.uploadImage(
+                new MockMultipartFile("file", "a.webp", "image/webp", new byte[]{1}), "diaries/u1", Set.of("image/heic")))
+                .extracting("errorCode").isEqualTo(S3ErrorCode.INVALID_IMAGE_TYPE);
     }
 
     @Test
