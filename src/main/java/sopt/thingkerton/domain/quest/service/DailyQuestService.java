@@ -50,6 +50,7 @@ public class DailyQuestService {
     private final AiTimeLimiter aiTimeLimiter;
     private final QuestProperties questProperties;
     private final QuestGeocoder questGeocoder;
+    private final QuestImageAttacher questImageAttacher;
     private final Clock clock;
 
     /**
@@ -91,6 +92,10 @@ public class DailyQuestService {
         }
         // 장소 주소 → 좌표 (생성 시 한 번만, 실패하면 좌표 없이 저장)
         quests = questGeocoder.attachCoordinates(quests);
+        // 대표 이미지 AI 생성 (생성 시 한 번만, 데모 퀘스트는 생성하지 않음. 실패하면 카테고리 기본 이미지)
+        if (!isFallback) {
+            quests = questImageAttacher.attachImages(quests);
+        }
 
         try {
             dailyQuestWriter.save(profile.getUserKey(), today, latitude, longitude, interests, isFallback, quests,

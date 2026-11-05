@@ -47,7 +47,9 @@ public class DailyQuestWriter {
                     generated.category(),
                     generated.estimatedMinutes(),
                     generated.placeName(),
-                    questImageResolver.resolveRef(generated.category(), generated.key().activityKey()),
+                    generated.imageRef() != null
+                            ? generated.imageRef()
+                            : questImageResolver.resolveRef(generated.category(), generated.key().activityKey()),
                     generated.address(),
                     generated.coordinate(),
                     now));
