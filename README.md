@@ -40,6 +40,14 @@ src
 └─ test
 ```
 
+## 문서
+
+| 문서 | 내용 |
+|---|---|
+| [API 명세서](docs/동네메이트_API_명세서.md) | 엔드포인트, 요청·응답, 에러 코드, 상태 전이, 퀘스트 생성 규칙 |
+| [ERD](docs/동네메이트_ERD.md) | 테이블, 관계, 인덱스·제약 |
+| [AGENTS.md](AGENTS.md) | 코딩 에이전트·개발자 공통 구현 가이드 (Claude Code는 로컬 `CLAUDE.md`에 `@AGENTS.md` 추가) |
+
 ## 로컬 실행
 
 로컬 DB는 Docker Compose로 띄운 MySQL 8.4를 사용합니다. (운영 RDS와 같은 버전)
