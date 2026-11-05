@@ -1,5 +1,6 @@
 package sopt.thingkerton.domain.quest.service;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -25,35 +26,39 @@ import org.springframework.stereotype.Component;
 public class QuestImageAttacher implements DisposableBean {
 
     private final QuestImageGenerator questImageGenerator;
-    private final QuestProperties questProperties;
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
-    public QuestImageAttacher(QuestImageGenerator questImageGenerator, QuestProperties questProperties) {
+    public QuestImageAttacher(QuestImageGenerator questImageGenerator) {
         this.questImageGenerator = questImageGenerator;
-        this.questProperties = questProperties;
     }
 
     /**
      * {@link #attachImages}를 별도 스레드에서 실행한다. 좌표 변환과 동시에 돌리기 위해 사용한다.
      */
-    public CompletableFuture<List<GeneratedQuest>> attachImagesAsync(List<GeneratedQuest> quests) {
-        return CompletableFuture.supplyAsync(() -> attachImages(quests), executor);
+    public CompletableFuture<List<GeneratedQuest>> attachImagesAsync(List<GeneratedQuest> quests, Duration timeout) {
+        return CompletableFuture.supplyAsync(() -> attachImages(quests, timeout), executor);
     }
 
     /**
      * 이미지가 없는 퀘스트만 병렬로 생성한다. 순서는 유지한다.
-     * 제한 시간을 넘긴 작업은 취소(인터럽트)한다.
+     * 제한 시간을 넘긴 작업은 취소(인터럽트)한다. 남은 시간이 없으면 호출하지 않는다.
+     *
+     * @param timeout 3장 전체 제한 시간 (호출 측이 마감까지 남은 시간으로 정한다)
      */
-    public List<GeneratedQuest> attachImages(List<GeneratedQuest> quests) {
+    public List<GeneratedQuest> attachImages(List<GeneratedQuest> quests, Duration timeout) {
         List<GeneratedQuest> targets = quests.stream().filter(quest -> quest.imageRef() == null).toList();
         if (targets.isEmpty()) {
+            return quests;
+        }
+        if (timeout.isZero() || timeout.isNegative()) {
+            log.warn("No time left for quest image generation. Using default images.");
             return quests;
         }
         List<Future<String>> futures;
         try {
             futures = executor.invokeAll(
                     targets.stream().<Callable<String>>map(quest -> () -> questImageGenerator.generate(quest)).toList(),
-                    questProperties.imageGenerationTimeout().toMillis(), TimeUnit.MILLISECONDS);
+                    timeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             return quests;
