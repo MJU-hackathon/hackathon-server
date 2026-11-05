@@ -55,6 +55,27 @@ class S3UploaderTest {
     }
 
     @Test
+    void 바이트_배열_이미지를_업로드하고_URL을_반환한다() {
+        UploadedFile result = s3Uploader.uploadImage(new byte[]{1, 2, 3}, "image/png", "quest-images");
+
+        ArgumentCaptor<PutObjectRequest> captor = ArgumentCaptor.forClass(PutObjectRequest.class);
+        verify(s3Client).putObject(captor.capture(), any(RequestBody.class));
+        assertThat(captor.getValue().contentType()).isEqualTo("image/png");
+        assertThat(captor.getValue().contentLength()).isEqualTo(3L);
+        assertThat(result.key()).startsWith("quest-images/").endsWith(".png").isEqualTo(captor.getValue().key());
+        assertThat(result.url()).isEqualTo("https://test-bucket.s3.ap-southeast-2.amazonaws.com/" + result.key());
+    }
+
+    @Test
+    void 바이트_배열이_비었거나_형식이_다르면_업로드하지_않는다() {
+        assertThatThrownBy(() -> s3Uploader.uploadImage(new byte[0], "image/png", "quest-images"))
+                .extracting("errorCode").isEqualTo(S3ErrorCode.EMPTY_FILE);
+        assertThatThrownBy(() -> s3Uploader.uploadImage(new byte[]{1}, "image/gif", "quest-images"))
+                .extracting("errorCode").isEqualTo(S3ErrorCode.INVALID_IMAGE_TYPE);
+        verify(s3Client, never()).putObject(any(PutObjectRequest.class), any(RequestBody.class));
+    }
+
+    @Test
     void 허용_형식을_지정하면_HEIC도_업로드한다() {
         MockMultipartFile file = new MockMultipartFile("file", "photo.heic", "image/heic", new byte[]{1, 2, 3});
 

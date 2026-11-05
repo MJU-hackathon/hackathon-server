@@ -48,7 +48,7 @@ erDiagram
         varchar category
         int estimated_minutes
         varchar place_name "AI 생성값, 미검증"
-        varchar image_ref "팀 준비 이미지 참조"
+        varchar image_ref "AI 생성 이미지 S3 키(quest-images/...) 또는 팀 준비 기본 이미지 파일명"
         varchar address "AI 생성 도로명 주소, NULL 허용"
         decimal latitude "address를 네이버 Geocoding으로 변환, 실패 시 NULL"
         decimal longitude "address를 네이버 Geocoding으로 변환, 실패 시 NULL"

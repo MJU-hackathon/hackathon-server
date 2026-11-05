@@ -1,10 +1,12 @@
 package sopt.thingkerton.global.infra.ai;
 
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
+@EnableConfigurationProperties({AiImageProperties.class, CloudflareAiProperties.class})
 public class AiConfig {
 
     /**
