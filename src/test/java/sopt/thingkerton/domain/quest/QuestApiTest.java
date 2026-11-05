@@ -41,6 +41,7 @@ import sopt.thingkerton.domain.quest.repository.QuestRepository;
 import sopt.thingkerton.support.FakeAiConfig;
 import sopt.thingkerton.support.FakeGeocodingPort;
 import sopt.thingkerton.support.FakeQuestGenerator;
+import sopt.thingkerton.support.FakeQuestImageGenerator;
 import sopt.thingkerton.support.FakeQuestTranslator;
 import sopt.thingkerton.support.FixedClockConfig;
 import sopt.thingkerton.support.MutableClock;
@@ -62,6 +63,8 @@ class QuestApiTest {
     @Autowired
     private FakeGeocodingPort geocodingPort;
     @Autowired
+    private FakeQuestImageGenerator imageGenerator;
+    @Autowired
     private MutableClock clock;
     @Autowired
     private DailyQuestSetRepository dailyQuestSetRepository;
@@ -77,6 +80,7 @@ class QuestApiTest {
         generator.reset();
         translator.reset();
         geocodingPort.reset();
+        imageGenerator.reset();
         clock.reset();
     }
 
@@ -89,7 +93,9 @@ class QuestApiTest {
                 .andExpect(jsonPath("$.code").value("ENSURE_DAILY_QUESTS"))
                 .andExpect(jsonPath("$.data.length()").value(3))
                 .andExpect(jsonPath("$.data[0].title").value(org.hamcrest.Matchers.startsWith("[ko]")))
-                .andExpect(jsonPath("$.data[0].imageUrl").value("https://cdn.example.com/quest-images/food.jpg")));
+                .andExpect(jsonPath("$.data[0].imageUrl").value(org.hamcrest.Matchers.allOf(
+                        org.hamcrest.Matchers.startsWith("https://test-bucket.s3."),
+                        org.hamcrest.Matchers.endsWith("/quest-images/place-a-ko-1.png")))));
 
         // 다른 좌표로 재호출해도 새로 만들지 않는다
         List<Integer> second = questIds(mockMvc.perform(post("/api/daily-quests/ensure")
@@ -100,6 +106,7 @@ class QuestApiTest {
 
         assertThat(second).isEqualTo(first);
         assertThat(generator.commands()).hasSize(1);
+        assertThat(imageGenerator.placeNames()).hasSize(3);
         assertThat(generator.commands().getFirst().interests()).containsExactly(Interest.KPOP, Interest.FOOD);
     }
 
@@ -392,6 +399,66 @@ class QuestApiTest {
                 .andExpect(jsonPath("$.data.placeName").value("영천시장"))
                 .andExpect(jsonPath("$.data.address").value("서울특별시 서대문구 통일로 189-1"))
                 .andExpect(jsonPath("$.data.latitude").value(37.571234));
+    }
+
+    @Test
+    void 대표_이미지는_생성_시_AI로_만들어_저장하고_상세에서도_같은_URL을_내려준다() throws Exception {
+        String userKey = newUserWithProfile("ko");
+
+        String body = ensure(userKey, null).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        Integer questId = JsonPath.read(body, "$.data[1].questId");
+        String cardImageUrl = JsonPath.read(body, "$.data[1].imageUrl");
+
+        assertThat(cardImageUrl).endsWith("/quest-images/place-b-ko-1.png");
+        mockMvc.perform(get("/api/quests/{id}", questId).header("X-User-Key", userKey).param("locale", "en"))
+                .andExpect(jsonPath("$.data.imageUrl").value(cardImageUrl));
+        mockMvc.perform(get("/api/daily-quests/today").header("X-User-Key", userKey))
+                .andExpect(jsonPath("$.data[1].imageUrl").value(cardImageUrl));
+        // 조회·언어 변경 때 다시 생성하지 않는다
+        assertThat(imageGenerator.placeNames()).hasSize(3);
+    }
+
+    @Test
+    void 대표_이미지_생성에_실패한_퀘스트는_카테고리_기본_이미지를_쓰고_퀘스트는_정상_생성된다() throws Exception {
+        String userKey = newUserWithProfile("ko");
+        generator.setFixedResult(List.of(
+                FakeQuestGenerator.quest(FakeQuestImageGenerator.FAIL_MARKER + "-a", Interest.FOOD, null),
+                FakeQuestGenerator.quest("img-ok-b", Interest.KPOP, null),
+                FakeQuestGenerator.quest("img-ok-c", Interest.GAME, null)));
+
+        ensure(userKey, null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(3))
+                .andExpect(jsonPath("$.data[0].imageUrl").value("https://cdn.example.com/quest-images/food.jpg"))
+                .andExpect(jsonPath("$.data[1].imageUrl").value(org.hamcrest.Matchers.endsWith(
+                        "/" + FakeQuestImageGenerator.refOf("img-ok-b"))));
+        assertThat(dailyQuestSetRepository.findByUserKeyAndQuestDate(userKey, TODAY).orElseThrow().isFallback())
+                .isFalse();
+    }
+
+    @Test
+    void 대표_이미지_생성이_제한_시간을_넘기면_기본_이미지로_저장한다() throws Exception {
+        String userKey = newUserWithProfile("ko");
+        imageGenerator.setDelayMillis(3_000);
+
+        long start = System.currentTimeMillis();
+        ensure(userKey, null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(3))
+                .andExpect(jsonPath("$.data[0].imageUrl").value("https://cdn.example.com/quest-images/food.jpg"))
+                .andExpect(jsonPath("$.data[1].imageUrl").value("https://cdn.example.com/quest-images/kpop.jpg"));
+        assertThat(System.currentTimeMillis() - start).isLessThan(2_500);
+    }
+
+    @Test
+    void 데모_퀘스트는_대표_이미지를_생성하지_않고_기본_이미지를_쓴다() throws Exception {
+        String userKey = newUserWithProfile("ko");
+        generator.setFailing(true);
+
+        ensure(userKey, null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].imageUrl").value("https://cdn.example.com/quest-images/food.jpg"));
+        assertThat(imageGenerator.placeNames()).isEmpty();
     }
 
     private PlaceActivityKey recordDiary(String userKey, Integer questId, String draftId, Outcome outcome) {
