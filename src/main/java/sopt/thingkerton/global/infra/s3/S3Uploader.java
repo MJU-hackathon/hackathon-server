@@ -3,6 +3,7 @@ package sopt.thingkerton.global.infra.s3;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,8 +25,13 @@ public class S3Uploader {
     private static final Map<String, String> IMAGE_EXTENSIONS = Map.of(
             "image/jpeg", "jpg",
             "image/png", "png",
-            "image/webp", "webp"
+            "image/webp", "webp",
+            "image/heic", "heic",
+            "image/heif", "heif"
     );
+
+    /** 기본 허용 형식. HEIC는 호출 측이 명시적으로 허용할 때만 받는다. */
+    private static final Set<String> DEFAULT_IMAGE_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
 
     private final S3Client s3Client;
     private final S3Properties properties;
@@ -36,7 +42,16 @@ public class S3Uploader {
      * @param dir 저장 디렉터리 (예: "quests/1/3"), 앞뒤 슬래시 없이 전달
      */
     public UploadedFile uploadImage(MultipartFile file, String dir) {
-        String extension = validateImage(file);
+        return uploadImage(file, dir, DEFAULT_IMAGE_TYPES);
+    }
+
+    /**
+     * 허용 형식을 지정해 업로드한다. (예: 일기 사진은 HEIC 허용)
+     *
+     * @param allowedContentTypes 허용할 Content-Type. jpeg, png, webp, heic, heif 중에서 고른다
+     */
+    public UploadedFile uploadImage(MultipartFile file, String dir, Set<String> allowedContentTypes) {
+        String extension = validateImage(file, allowedContentTypes);
         String key = dir + "/" + UUID.randomUUID() + "." + extension;
 
         PutObjectRequest request = PutObjectRequest.builder()
@@ -67,17 +82,23 @@ public class S3Uploader {
         }
     }
 
-    private String getUrl(String key) {
+    /**
+     * 저장된 객체 키의 URL.
+     */
+    public String getUrl(String key) {
         return s3Client.utilities()
                 .getUrl(GetUrlRequest.builder().bucket(properties.bucket()).key(key).build())
                 .toString();
     }
 
-    private String validateImage(MultipartFile file) {
+    private String validateImage(MultipartFile file, Set<String> allowedContentTypes) {
         if (file == null || file.isEmpty()) {
             throw new BusinessException(S3ErrorCode.EMPTY_FILE);
         }
-        String extension = IMAGE_EXTENSIONS.get(file.getContentType());
+        String contentType = file.getContentType();
+        String extension = contentType != null && allowedContentTypes.contains(contentType)
+                ? IMAGE_EXTENSIONS.get(contentType)
+                : null;
         if (extension == null) {
             throw new BusinessException(S3ErrorCode.INVALID_IMAGE_TYPE);
         }

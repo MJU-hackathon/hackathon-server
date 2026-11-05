@@ -91,6 +91,20 @@ public class Quest {
         return currentStatus(today) == QuestStatus.AVAILABLE;
     }
 
+    /**
+     * 일기를 저장할 수 있는지. AVAILABLE이면 가능하고, EXPIRED라도 촬영 시작 시각이 묶음 날짜(Asia/Seoul) 안이면
+     * 가능하다(전날 촬영 후 자정을 넘겨 작성한 경우).
+     *
+     * @param draftStartedAt Asia/Seoul 기준 촬영 시작 시각
+     */
+    public boolean isRecordable(LocalDate today, LocalDateTime draftStartedAt) {
+        QuestStatus current = currentStatus(today);
+        if (current == QuestStatus.AVAILABLE) {
+            return true;
+        }
+        return current == QuestStatus.EXPIRED && draftStartedAt.toLocalDate().equals(dailySet.getQuestDate());
+    }
+
     public void skip(LocalDateTime now) {
         changeStatus(QuestStatus.SKIPPED, now);
     }
