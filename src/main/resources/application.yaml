@@ -53,6 +53,9 @@ app:
   s3:
     bucket: ${S3_BUCKET:mju-hackathon-photos-2026}
     region: ${S3_REGION:ap-southeast-2}
+  quest:
+    # TODO: 팀이 준비한 퀘스트 대표 이미지 경로로 교체 ({base-url}/{카테고리}.jpg)
+    image-base-url: ${QUEST_IMAGE_BASE_URL:https://cdn.example.com/quest-images}
   naver-maps:
     api-key-id: ${NAVER_MAPS_API_KEY_ID}
     api-key: ${NAVER_MAPS_API_KEY}

@@ -1,6 +1,5 @@
 package sopt.thingkerton.support;
 
-import java.time.Clock;
 import java.time.ZonedDateTime;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -8,7 +7,7 @@ import org.springframework.context.annotation.Primary;
 import sopt.thingkerton.global.time.SeoulTime;
 
 /**
- * 테스트용 고정 시각: 2026-11-06 10:00 (Asia/Seoul).
+ * 테스트용 시각: 2026-11-06 10:00 (Asia/Seoul)에서 시작. 날짜를 바꾼 테스트는 {@link MutableClock#reset()}으로 되돌린다.
  */
 @TestConfiguration
 public class FixedClockConfig {
@@ -17,7 +16,7 @@ public class FixedClockConfig {
 
     @Bean
     @Primary
-    public Clock fixedClock() {
-        return Clock.fixed(NOW.toInstant(), SeoulTime.ZONE);
+    public MutableClock fixedClock() {
+        return new MutableClock(NOW);
     }
 }
