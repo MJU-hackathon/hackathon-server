@@ -1,6 +1,5 @@
 package sopt.thingkerton.global.infra.ai;
 
-import com.google.genai.errors.ApiException;
 import java.util.Objects;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -9,7 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.converter.BeanOutputConverter;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import sopt.thingkerton.global.exception.BusinessException;
@@ -96,33 +94,12 @@ public class AiClient {
         } catch (BusinessException exception) {
             throw exception;
         } catch (RuntimeException exception) {
-            throw translate(exception);
+            throw AiExceptions.translate(exception);
         }
         if (result == null) {
             log.warn("AI returned empty response");
             throw new BusinessException(AiErrorCode.AI_CALL_FAILED);
         }
         return result;
-    }
-
-    private BusinessException translate(RuntimeException exception) {
-        ApiException apiException = findApiException(exception);
-        if (apiException != null && apiException.code() == HttpStatus.TOO_MANY_REQUESTS.value()) {
-            log.warn("AI rate limited: {}", apiException.message());
-            return new BusinessException(AiErrorCode.AI_RATE_LIMITED);
-        }
-        log.error("AI call failed", exception);
-        return new BusinessException(AiErrorCode.AI_CALL_FAILED);
-    }
-
-    private ApiException findApiException(Throwable throwable) {
-        Throwable current = throwable;
-        while (current != null) {
-            if (current instanceof ApiException apiException) {
-                return apiException;
-            }
-            current = current.getCause();
-        }
-        return null;
     }
 }
