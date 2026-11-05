@@ -3,7 +3,6 @@ package sopt.thingkerton.global.config;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
-import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springdoc.core.utils.SpringDocUtils;
 import org.springframework.context.annotation.Bean;
@@ -33,7 +32,6 @@ public class SwaggerConfig {
                                 .type(SecurityScheme.Type.APIKEY)
                                 .in(SecurityScheme.In.HEADER)
                                 .name(UserKeyArgumentResolver.HEADER_NAME)
-                                .description("앱이 최초 실행 시 만든 UUID")))
-                .addSecurityItem(new SecurityRequirement().addList(USER_KEY_SCHEME));
+                                .description("프로필·퀘스트·일기 API의 필수 헤더. 앱이 최초 실행 시 만든 UUID이며 공백 불가, 최대 64자입니다.")));
     }
 }

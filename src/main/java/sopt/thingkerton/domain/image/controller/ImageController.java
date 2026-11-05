@@ -1,7 +1,5 @@
 package sopt.thingkerton.domain.image.controller;
 
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,16 +13,15 @@ import sopt.thingkerton.domain.image.service.ImageService;
 import sopt.thingkerton.global.dto.CommonResponse;
 import sopt.thingkerton.global.infra.s3.UploadedFile;
 
-@Tag(name = "Image", description = "이미지 업로드")
 @RestController
 @RequestMapping("/api/images")
 @RequiredArgsConstructor
-public class ImageController {
+public class ImageController implements ImageApi {
 
     private final ImageService imageService;
 
-    @Operation(summary = "이미지 업로드", description = "jpg, png, webp 이미지(최대 10MB)를 S3에 업로드하고 URL을 반환합니다.")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Override
     public CommonResponse<ImageUploadResponse> upload(@RequestPart("file") MultipartFile file) {
         UploadedFile uploadedFile = imageService.upload(file);
         return CommonResponse.success(ImageSuccessCode.IMAGE_UPLOAD_SUCCESS, ImageUploadResponse.from(uploadedFile));
