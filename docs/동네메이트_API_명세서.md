@@ -110,7 +110,7 @@ WF-01 '회원가입'은 인증이 아니라 프로필 설정이다. 최초 설�
 
 ## 오늘의 퀘스트 (WF-02)
 
-홈 진입 시 앱은 기기에서 얻은 현재 위도·경도를 `POST /daily-quests/ensure`로 보낸다. 서버는 지도 API를 쓰지 않고, 이 좌표를 그대로 AI에 넘겨 반경 3km 안의 퀘스트 3개를 생성한다. 그날 이후 호출은 같은 묶음의 남은 퀘스트를 돌려주며, 재접속·새로고침·재요청으로 3개를 더 주는 일은 없다.
+홈 진입 시 앱은 기기에서 얻은 현재 위도·경도를 `POST /daily-quests/ensure`로 보낸다. 서버는 이 좌표를 그대로 AI에 넘겨 반경 3km 안의 퀘스트 3개를 생성하고, AI가 만든 장소 주소를 네이버 Geocoding으로 좌표 변환해 함께 저장한다. 그날 이후 호출은 같은 묶음의 남은 퀘스트를 돌려주며, 재접속·새로고침·재요청으로 3개를 더 주는 일은 없다.
 
 두 API 모두 `data`가 홈 카드 리스트(배열)다.
 
@@ -212,6 +212,9 @@ WF-01 '회원가입'은 인증이 아니라 프로필 설정이다. 최초 설�
       "음식이나 시장 풍경 사진 찍기"
     ],
     "placeName": "영천시장",
+    "address": "서울특별시 서대문구 통일로 189-1",
+    "latitude": 37.571234,
+    "longitude": 126.961234,
     "imageUrl": "https://cdn.example.com/quest-images/market.jpg",
     "locale": "ko",
     "status": "AVAILABLE"
@@ -219,7 +222,8 @@ WF-01 '회원가입'은 인증이 아니라 프로필 설정이다. 최초 설�
 }
 ```
 
-- 지도 API를 쓰지 않으므로 장소 좌표는 내려주지 않는다. `placeName`은 AI 생성값이며 실존 검증된 데이터가 아니다.
+- `placeName`·`address`는 AI 생성값이며 실존 검증된 데이터가 아니다.
+- `latitude`·`longitude`는 퀘스트 생성 시 `address`를 네이버 Geocoding(`GET /api/locations/geocode`와 같은 로직)으로 변환해 저장한 값이다. 주소가 없거나 변환에 실패하면 셋 다 또는 좌표만 `null`이며, 앱은 이때 지도를 숨긴다.
 - `imageUrl`은 팀이 준비한 대표 이미지(카테고리·활동 매핑). AI 이미지 생성 없음.
 - `status`가 `AVAILABLE`이 아니면 앱은 '사진으로 기록하기'·'이번엔 패스'를 비활성화한다.
 
@@ -361,7 +365,7 @@ WF-01 '회원가입'은 인증이 아니라 프로필 설정이다. 최초 설�
 | profiles | user_key, nickname, locale, birth_date, stay_start_date, stay_end_date, created_at, updated_at | PK user_key |
 | profile_interests | user_key, interest | PK(user_key, interest) |
 | daily_quest_sets | id, user_key, quest_date, created_at, gen_latitude, gen_longitude, interests_snapshot, is_fallback | UNIQUE(user_key, quest_date) |
-| quests | id, daily_set_id, place_key, activity_key, category, estimated_minutes, place_name, image_ref, status, status_changed_at | |
+| quests | id, daily_set_id, place_key, activity_key, category, estimated_minutes, place_name, image_ref, address, latitude, longitude, status, status_changed_at | address·latitude·longitude nullable |
 | quest_texts | quest_id, locale, title, reason, description, steps(json) | PK(quest_id, locale) |
 | diaries | id, user_key, quest_id, draft_id, place_key, activity_key, title_snapshot, place_snapshot, photo_key, outcome, memo, draft_started_at, created_at | UNIQUE(quest_id), UNIQUE(draft_id) |
 
@@ -396,6 +400,7 @@ LLM 출력은 퀘스트 응답 구조에 맞춘 JSON으로 받는다.
       "category": "FOOD",
       "estimatedMinutes": 40,
       "placeName": "영천시장",
+      "address": "서울특별시 서대문구 통일로 189-1",
       "title": "시장에서 만나는 첫 번째 한입",
       "reason": "관심사 '음식'을 바탕으로 추천했어요",
       "description": "...",
@@ -407,13 +412,14 @@ LLM 출력은 퀘스트 응답 구조에 맞춘 JSON으로 받는다.
 
 `placeKey`·`activityKey`는 표현이 달라도 같은 경험을 묶기 위한 정규화 키다(소문자·공백 제거 등, 방식은 개발 결정). 제외 목록은 이 키 쌍으로 프롬프트에 넣고, 응답에서도 한 번 더 걸러낸다.
 
-### 위치 처리 (지도 API 미사용)
+### 위치 처리
 
-- 앱·서버 모두 지도 API를 쓰지 않는다. 상세 화면에도 지도를 표시하지 않는다.
-- 위치는 앱이 OS 위치 권한으로 얻은 위도·경도뿐이다. 서버는 이 값을 `daily_quest_sets.gen_latitude/gen_longitude`에 저장하고 프롬프트에 그대로 넣는다.
+- 요청 위치는 앱이 OS 위치 권한으로 얻은 위도·경도다. 서버는 이 값을 `daily_quest_sets.gen_latitude/gen_longitude`에 저장하고 프롬프트에 그대로 넣는다.
 - 프롬프트 예: "사용자 관심사는 음식, 영화, KPOP이다. 위도 37.5718, 경도 126.9620 지점에서 반경 3km 안에 있는 장소로 퀘스트 3개를 만들어라. 관심사를 우선 반영하되 다른 분야도 섞어라. 다음 장소+활동 조합은 제외하라: [이미 경험한 목록]."
-- AI가 만든 장소는 좌표 없이 `placeName`만 저장하며, 실제로 3km 안인지 검증하지 않는다.
-- 기존 주소→좌표 변환 API `GET /api/locations/geocode`(#14, 네이버 API)는 퀘스트 생성·조회 흐름에서 호출하지 않는다. 이 문서의 8개 API와 별개로 유지한다.
+- AI는 장소마다 도로명 주소(`address`)도 만든다. 서버는 생성 직후 이 주소를 네이버 Geocoding(`LocationService`, `GET /api/locations/geocode`와 같은 로직)으로 변환해 `quests.latitude/longitude`에 저장한다.
+  - 3곳을 병렬로 변환하고 제한 시간(기본 3초)을 넘기거나 실패하면 좌표 없이 저장한다. 퀘스트 생성은 실패시키지 않는다.
+  - 상세 조회 때는 다시 변환하지 않고 저장된 값을 내려준다.
+- 변환한 좌표가 실제로 요청 좌표 3km 안인지는 검증하지 않는다.
 
 ## 개발팀 결정 필요 사항
 

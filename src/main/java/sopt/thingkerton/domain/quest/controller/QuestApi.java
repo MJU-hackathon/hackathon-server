@@ -16,7 +16,9 @@ public interface QuestApi {
 
     @Operation(
             summary = "퀘스트 상세",
-            description = "본인 묶음의 퀘스트만 조회하며, 장소·활동 설명을 요청 언어로 반환합니다. 번역 실패 시 저장된 원문을 반환합니다."
+            description = "본인 묶음의 퀘스트만 조회하며, 장소·활동 설명을 요청 언어로 반환합니다. 번역 실패 시 저장된 원문을 반환합니다. "
+                    + "address·latitude·longitude는 퀘스트 생성 시 AI가 만든 주소를 네이버 Geocoding으로 변환해 저장한 값이며, "
+                    + "주소가 없거나 변환에 실패하면 null입니다."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "400", description = "INVALID_INPUT: 64자 초과 X-User-Key | "

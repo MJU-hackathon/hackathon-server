@@ -64,6 +64,7 @@ public class GeminiQuestGenerator implements QuestGenerator {
                 - category: one of the allowed categories
                 - estimatedMinutes: integer between %d and %d
                 - placeName: the place's common name
+                - address: the place's Korean road-name address in Korean (e.g. "서울특별시 서대문구 통일로 247"); empty string if you are not sure
                 - title: short catchy title, max 30 characters
                 - reason: one line explaining why this was recommended based on the interests, max 60 characters
                 - description: 1-2 sentences introducing the activity
@@ -103,6 +104,8 @@ public class GeminiQuestGenerator implements QuestGenerator {
                     category,
                     Math.clamp(item.estimatedMinutes() == null ? 30 : item.estimatedMinutes(), MIN_MINUTES, MAX_MINUTES),
                     truncate(item.placeName(), 100),
+                    StringUtils.hasText(item.address()) ? truncate(item.address(), 255) : null,
+                    null,
                     truncate(item.title(), 100),
                     truncate(StringUtils.hasText(item.reason()) ? item.reason() : "", 255),
                     StringUtils.hasText(item.description()) ? item.description().strip() : "",
@@ -135,6 +138,7 @@ public class GeminiQuestGenerator implements QuestGenerator {
             String category,
             Integer estimatedMinutes,
             String placeName,
+            String address,
             String title,
             String reason,
             String description,

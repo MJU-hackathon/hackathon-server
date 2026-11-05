@@ -18,6 +18,7 @@ import org.springframework.test.context.ActiveProfiles;
 import sopt.thingkerton.domain.diary.entity.Diary;
 import sopt.thingkerton.domain.diary.entity.Outcome;
 import sopt.thingkerton.domain.diary.repository.DiaryRepository;
+import sopt.thingkerton.domain.location.model.Coordinate;
 import sopt.thingkerton.domain.profile.entity.AppLocale;
 import sopt.thingkerton.domain.profile.entity.Interest;
 import sopt.thingkerton.domain.profile.entity.Profile;
@@ -67,6 +68,23 @@ class EntityMappingTest {
         assertThat(found.getLocale()).isEqualTo(AppLocale.VI);
         assertThat(found.getInterests()).containsExactlyInAnyOrder(Interest.FOOD, Interest.KPOP);
         assertThat(found.getCreatedAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    void 퀘스트_주소와_좌표를_소수점_6자리로_저장하고_좌표가_없으면_null() {
+        DailyQuestSet set = dailyQuestSetRepository.saveAndFlush(set("user-1", TODAY));
+        Quest withCoordinate = questRepository.saveAndFlush(quest(set));
+        Quest withoutCoordinate = questRepository.saveAndFlush(Quest.create(set, "p", "a", Interest.GAME, 30, "장소",
+                "game.jpg", null, null, NOW));
+        entityManager.clear();
+
+        Quest found = questRepository.findById(withCoordinate.getId()).orElseThrow();
+        assertThat(found.getAddress()).isEqualTo("서울특별시 서대문구 통일로 189-1");
+        assertThat(found.getLatitude()).isEqualByComparingTo("37.571800");
+        assertThat(found.getLongitude()).isEqualByComparingTo("126.962000");
+        Quest empty = questRepository.findById(withoutCoordinate.getId()).orElseThrow();
+        assertThat(empty.getAddress()).isNull();
+        assertThat(empty.getLatitude()).isNull();
     }
 
     @Test
@@ -122,7 +140,7 @@ class EntityMappingTest {
 
     private Quest quest(DailyQuestSet set) {
         return Quest.create(set, "yeongcheon-market", "order-market-food", Interest.FOOD, 40, "영천시장",
-                "market", NOW);
+                "market", "서울특별시 서대문구 통일로 189-1", new Coordinate(37.5718, 126.962), NOW);
     }
 
     private Diary diary(Quest quest, String draftId) {

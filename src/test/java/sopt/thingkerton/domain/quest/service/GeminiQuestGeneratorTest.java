@@ -40,19 +40,34 @@ class GeminiQuestGeneratorTest {
         ArgumentCaptor<String> prompt = ArgumentCaptor.forClass(String.class);
         Mockito.verify(aiClient).chat(anyString(), prompt.capture(), any());
         assertThat(prompt.getValue())
-                .contains("37.571800", "126.962000", "3km", "FOOD, KPOP", "done-place + done-activity", "vi");
+                .contains("37.571800", "126.962000", "3km", "FOOD, KPOP", "done-place + done-activity", "vi",
+                        "address", "road-name address");
     }
 
     @Test
     void 형식이_잘못되거나_제외_대상인_퀘스트는_버리고_키를_정규화한다() {
         when(aiClient.chat(anyString(), anyString(), eq(Payload.class))).thenReturn(new Payload(List.of(
-                new Item("Done Place", "done_activity", "FOOD", 30, "x", "t", "r", "d", List.of("s")),
-                new Item("p-bad", "a", "SPORTS", 30, "x", "t", "r", "d", List.of("s")),
+                new Item("Done Place", "done_activity", "FOOD", 30, "x", null, "t", "r", "d", List.of("s")),
+                new Item("p-bad", "a", "SPORTS", 30, "x", null, "t", "r", "d", List.of("s")),
                 item("A Place"), item("b"), item("b"), item("c"), item("d"))));
 
         List<GeneratedQuest> quests = generator.generate(command);
 
         assertThat(quests).extracting(quest -> quest.key().placeKey()).containsExactly("a-place", "b", "c");
+    }
+
+    @Test
+    void 주소는_공백을_정리하고_비어_있으면_null_좌표는_아직_없다() {
+        when(aiClient.chat(anyString(), anyString(), eq(Payload.class))).thenReturn(new Payload(List.of(
+                item("a"),
+                new Item("b", "x", "FOOD", 30, "B", "  ", "t", "r", "d", List.of("s")),
+                new Item("c", "x", "FOOD", 30, "C", null, "t", "r", "d", List.of("s")))));
+
+        List<GeneratedQuest> quests = generator.generate(command);
+
+        assertThat(quests).extracting(GeneratedQuest::address)
+                .containsExactly("서울특별시 서대문구 통일로 247", null, null);
+        assertThat(quests).extracting(GeneratedQuest::coordinate).containsOnlyNulls();
     }
 
     @Test
@@ -66,16 +81,16 @@ class GeminiQuestGeneratorTest {
     @Test
     void 소요_시간은_10_240분으로_보정한다() {
         when(aiClient.chat(anyString(), anyString(), eq(Payload.class))).thenReturn(new Payload(List.of(
-                new Item("a", "x", "food", 1, "A", "t", "r", "d", List.of("s")),
-                new Item("b", "x", "FOOD", 999, "B", "t", "r", "d", List.of("s")),
-                new Item("c", "x", "FOOD", null, "C", "t", "r", "d", List.of("s")))));
+                new Item("a", "x", "food", 1, "A", null, "t", "r", "d", List.of("s")),
+                new Item("b", "x", "FOOD", 999, "B", "  ", "t", "r", "d", List.of("s")),
+                new Item("c", "x", "FOOD", null, "C", null, "t", "r", "d", List.of("s")))));
 
         assertThat(generator.generate(command)).extracting(GeneratedQuest::estimatedMinutes)
                 .containsExactly(10, 240, 30);
     }
 
     private Item item(String placeKey) {
-        return new Item(placeKey, "activity", "FOOD", 30, placeKey, "title", "reason", "desc",
-                List.of("s1", "s2", "s3"));
+        return new Item(placeKey, "activity", "FOOD", 30, placeKey, " 서울특별시 서대문구 통일로 247 ", "title", "reason",
+                "desc", List.of("s1", "s2", "s3"));
     }
 }

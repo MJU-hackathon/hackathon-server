@@ -59,6 +59,8 @@ app:
     # AI 호출 제한 시간. 생성은 넘으면 데모 퀘스트로, 번역은 넘으면 원문으로 응답한다
     generation-timeout: ${QUEST_GENERATION_TIMEOUT:15s}
     translation-timeout: ${QUEST_TRANSLATION_TIMEOUT:10s}
+    # 장소 주소 → 좌표 변환(네이버 Geocoding) 제한 시간. 넘으면 좌표 없이 저장한다
+    geocoding-timeout: ${QUEST_GEOCODING_TIMEOUT:3s}
     # TODO: 팀이 준비한 퀘스트 대표 이미지 경로로 교체 ({base-url}/{카테고리}.jpg)
     image-base-url: ${QUEST_IMAGE_BASE_URL:https://cdn.example.com/quest-images}
   naver-maps:

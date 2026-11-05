@@ -39,6 +39,7 @@ public class FakeQuestGenerator implements QuestGenerator {
     public static GeneratedQuest quest(String placeKey, Interest category, QuestGenerationCommand command) {
         String lang = command == null ? "ko" : command.locale().getCode();
         return new GeneratedQuest(new PlaceActivityKey(placeKey, "activity"), category, 30, placeKey,
+                "서울특별시 서대문구 " + placeKey, null,
                 "[" + lang + "] title " + placeKey, "[" + lang + "] reason", "[" + lang + "] description",
                 List.of("[" + lang + "] step1", "[" + lang + "] step2", "[" + lang + "] step3"));
     }

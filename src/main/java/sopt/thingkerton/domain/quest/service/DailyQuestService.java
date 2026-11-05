@@ -49,6 +49,7 @@ public class DailyQuestService {
     private final QuestImageResolver questImageResolver;
     private final AiTimeLimiter aiTimeLimiter;
     private final QuestProperties questProperties;
+    private final QuestGeocoder questGeocoder;
     private final Clock clock;
 
     /**
@@ -88,6 +89,8 @@ public class DailyQuestService {
             quests = demoQuestProvider.getDemoQuests();
             textLocale = DemoQuestProvider.DEMO_LOCALE;
         }
+        // 장소 주소 → 좌표 (생성 시 한 번만, 실패하면 좌표 없이 저장)
+        quests = questGeocoder.attachCoordinates(quests);
 
         try {
             dailyQuestWriter.save(profile.getUserKey(), today, latitude, longitude, interests, isFallback, quests,
