@@ -71,6 +71,38 @@ public class S3Uploader {
         return new UploadedFile(key, getUrl(key));
     }
 
+    /**
+     * 메모리에 있는 이미지(예: AI 생성 이미지)를 {dir}/{UUID}.{확장자} 경로로 업로드한다. jpeg, png, webp만 받는다.
+     */
+    public UploadedFile uploadImage(byte[] data, String contentType, String dir) {
+        if (data == null || data.length == 0) {
+            throw new BusinessException(S3ErrorCode.EMPTY_FILE);
+        }
+        String extension = contentType != null && DEFAULT_IMAGE_TYPES.contains(contentType)
+                ? IMAGE_EXTENSIONS.get(contentType)
+                : null;
+        if (extension == null) {
+            throw new BusinessException(S3ErrorCode.INVALID_IMAGE_TYPE);
+        }
+        String key = dir + "/" + UUID.randomUUID() + "." + extension;
+
+        PutObjectRequest request = PutObjectRequest.builder()
+                .bucket(properties.bucket())
+                .key(key)
+                .contentType(contentType)
+                .contentLength((long) data.length)
+                .build();
+
+        try {
+            s3Client.putObject(request, RequestBody.fromBytes(data));
+        } catch (SdkException exception) {
+            log.error("S3 upload failed. key={}", key, exception);
+            throw new BusinessException(S3ErrorCode.UPLOAD_FAILED);
+        }
+
+        return new UploadedFile(key, getUrl(key));
+    }
+
     public void delete(String key) {
         try {
             s3Client.deleteObject(DeleteObjectRequest.builder()
