@@ -13,6 +13,9 @@ spring:
         api-key: test-api-key
 
 app:
+  quest:
+    generation-timeout: 1s
+    translation-timeout: 1s
   naver-maps:
     api-key-id: test-id
     api-key: test-key

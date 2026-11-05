@@ -25,6 +25,7 @@ import sopt.thingkerton.domain.quest.entity.QuestText;
 import sopt.thingkerton.domain.quest.repository.DailyQuestSetRepository;
 import sopt.thingkerton.domain.quest.repository.QuestRepository;
 import sopt.thingkerton.global.exception.BusinessException;
+import sopt.thingkerton.global.infra.ai.AiTimeLimiter;
 
 /**
  * 오늘의 퀘스트. 사용자·날짜(Asia/Seoul)당 묶음 1개, 퀘스트 3개이며 보충하지 않는다.
@@ -46,6 +47,8 @@ public class DailyQuestService {
     private final DailyQuestWriter dailyQuestWriter;
     private final QuestTextService questTextService;
     private final QuestImageResolver questImageResolver;
+    private final AiTimeLimiter aiTimeLimiter;
+    private final QuestProperties questProperties;
     private final Clock clock;
 
     /**
@@ -96,11 +99,12 @@ public class DailyQuestService {
     }
 
     /**
-     * @return 제외 조합을 걸러낸 퀘스트 3개. 생성 실패·개수 부족이면 null (데모로 대체)
+     * @return 제외 조합을 걸러낸 퀘스트 3개. 생성 실패·시간 초과·개수 부족이면 null (데모로 대체)
      */
     private List<GeneratedQuest> generate(QuestGenerationCommand command) {
         try {
-            List<GeneratedQuest> quests = questGenerator.generate(command).stream()
+            List<GeneratedQuest> quests = aiTimeLimiter.call(() -> questGenerator.generate(command),
+                            questProperties.generationTimeout()).stream()
                     .filter(quest -> !command.excludedKeys().contains(quest.key()))
                     .toList();
             if (quests.size() != QuestGenerator.QUEST_COUNT) {
