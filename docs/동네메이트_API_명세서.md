@@ -167,7 +167,7 @@ WF-01 '회원가입'은 인증이 아니라 프로필 설정이다. 최초 설�
 | --- | --- |
 | 1행 태그 | `category` (앱에서 locale에 맞는 라벨로 표시, 예: FOOD → 음식) |
 | 1행 시계 | `estimatedMinutes` ("약 40분") |
-| 썸네일 | `imageUrl` (팀 준비 이미지) |
+| 썸네일 | `imageUrl` (AI 생성 이미지, 실패 시 팀 준비 기본 이미지) |
 | 제목 | `title` |
 | 장소 핀 아이콘 | `placeName` |
 | 3행 | `reason` (추천 근거 한 줄) |
@@ -224,7 +224,7 @@ WF-01 '회원가입'은 인증이 아니라 프로필 설정이다. 최초 설�
 
 - `placeName`·`address`는 AI 생성값이며 실존 검증된 데이터가 아니다.
 - `latitude`·`longitude`는 퀘스트 생성 시 `address`를 네이버 Geocoding(`GET /api/locations/geocode`와 같은 로직)으로 변환해 저장한 값이다. 주소가 없거나 변환에 실패하면 셋 다 또는 좌표만 `null`이며, 앱은 이때 지도를 숨긴다.
-- `imageUrl`은 팀이 준비한 대표 이미지(카테고리·활동 매핑). AI 이미지 생성 없음.
+- `imageUrl`은 퀘스트 생성 시 Gemini로 만든 대표 이미지(S3 `quest-images/` 경로). 생성 시 한 번만 만들어 저장하며 조회·언어 변경 때 다시 만들지 않는다. 데모(대체) 퀘스트이거나 생성에 실패·시간 초과(`QUEST_IMAGE_GENERATION_TIMEOUT`)하면 팀이 준비한 카테고리 기본 이미지를 쓴다.
 - `status`가 `AVAILABLE`이 아니면 앱은 '사진으로 기록하기'·'이번엔 패스'를 비활성화한다.
 
 ### POST /quests/{questId}/pass
