@@ -1,7 +1,6 @@
 package sopt.thingkerton.domain.quest.service;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import sopt.thingkerton.global.infra.ai.AiGeneratedImage;
 import sopt.thingkerton.global.infra.ai.CloudflareImageClient;
@@ -9,7 +8,6 @@ import sopt.thingkerton.global.infra.s3.S3Uploader;
 
 /**
  * Cloudflare Workers AI(FLUX)로 퀘스트 카드 대표 이미지를 만들어 S3({@value QuestImageResolver#GENERATED_DIR}/)에 저장한다.
- * {@code app.quest.image-provider=cloudflare}(기본값)일 때 사용한다.
  * <p>
  * FLUX는 영어 프롬프트에 맞춰져 있어 사용자 언어 문구(장소명·제목) 대신 영어 slug인 placeKey·activityKey로 프롬프트를 만든다.
  * 실제 호출로 확인한 FLUX schnell 특성 (2026-11-06):
@@ -21,7 +19,6 @@ import sopt.thingkerton.global.infra.s3.S3Uploader;
  * 그래도 가게·시장 장면에서는 가짜 글자가 가끔 나온다(모델 한계).
  */
 @Component
-@ConditionalOnProperty(name = "app.quest.image-provider", havingValue = "cloudflare", matchIfMissing = true)
 @RequiredArgsConstructor
 public class CloudflareQuestImageGenerator implements QuestImageGenerator {
 

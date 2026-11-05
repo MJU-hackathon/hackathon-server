@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -30,6 +31,13 @@ public class QuestImageAttacher implements DisposableBean {
     public QuestImageAttacher(QuestImageGenerator questImageGenerator, QuestProperties questProperties) {
         this.questImageGenerator = questImageGenerator;
         this.questProperties = questProperties;
+    }
+
+    /**
+     * {@link #attachImages}를 별도 스레드에서 실행한다. 좌표 변환과 동시에 돌리기 위해 사용한다.
+     */
+    public CompletableFuture<List<GeneratedQuest>> attachImagesAsync(List<GeneratedQuest> quests) {
+        return CompletableFuture.supplyAsync(() -> attachImages(quests), executor);
     }
 
     /**
