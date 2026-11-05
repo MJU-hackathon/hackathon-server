@@ -40,7 +40,7 @@ spring:
             thinking-level: ${GEMINI_THINKING_LEVEL:low}
     model:
       # Spring AI 모델은 채팅만 사용. 임베딩·이미지 모델 빈은 만들지 않는다
-      # (퀘스트 대표 이미지는 AiImageClient가 Gemini SDK로 직접 생성, 설정은 app.ai.image)
+      # (퀘스트 대표 이미지는 app.quest.image-provider에 따라 Cloudflare 또는 Gemini SDK로 직접 생성)
       embedding:
         text: none
       image: none
@@ -53,9 +53,16 @@ spring:
 app:
   ai:
     image:
-      # 이미지 생성이 가능한 Gemini 모델
+      # 이미지 생성이 가능한 Gemini 모델 (image-provider=gemini일 때만 사용, 유료)
       model: ${GEMINI_IMAGE_MODEL:gemini-2.5-flash-image}
       aspect-ratio: ${GEMINI_IMAGE_ASPECT_RATIO:4:3}
+  cloudflare:
+    ai:
+      # Workers AI (image-provider=cloudflare). 무료 하루 10,000 neuron, flux-1-schnell 1장 약 173 neuron
+      account-id: ${CLOUDFLARE_ACCOUNT_ID:}
+      api-token: ${CLOUDFLARE_API_TOKEN:}
+      image-model: ${CLOUDFLARE_IMAGE_MODEL:@cf/black-forest-labs/flux-1-schnell}
+      steps: ${CLOUDFLARE_IMAGE_STEPS:4}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
   s3:
@@ -67,6 +74,8 @@ app:
     translation-timeout: ${QUEST_TRANSLATION_TIMEOUT:10s}
     # 장소 주소 → 좌표 변환(네이버 Geocoding) 제한 시간. 넘으면 좌표 없이 저장한다
     geocoding-timeout: ${QUEST_GEOCODING_TIMEOUT:3s}
+    # 대표 이미지 생성기: cloudflare(무료 한도) | gemini(유료)
+    image-provider: ${QUEST_IMAGE_PROVIDER:cloudflare}
     # 대표 이미지 AI 생성 제한 시간(3장 병렬). 넘으면 카테고리 기본 이미지로 저장한다
     image-generation-timeout: ${QUEST_IMAGE_GENERATION_TIMEOUT:12s}
     # 기본 대표 이미지(데모 퀘스트·AI 생성 실패 시). TODO: 팀이 준비한 이미지 경로로 교체 ({base-url}/{카테고리}.jpg)
