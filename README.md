@@ -74,6 +74,19 @@ CORS_ALLOWED_ORIGINS=http://localhost:3000
 - 커밋: `{type}: {description} - #{issue-number}`
 - 타입: `feat`, `fix`, `refactor`, `docs`, `style`, `test`, `build`, `chore`, `ci`
 
+## 이미지 업로드 (S3)
+
+| 항목 | 값 |
+|---|---|
+| 버킷 | `mju-hackathon-photos-2026` (ap-southeast-2, 퍼블릭 읽기) |
+| 허용 형식 | jpg, png, webp / 최대 10MB |
+| 파일 경로 | `{dir}/{UUID}.{확장자}` |
+| URL | `https://mju-hackathon-photos-2026.s3.ap-southeast-2.amazonaws.com/{key}` |
+
+- 다른 기능에서는 `S3Uploader.uploadImage(file, dir)`를 사용합니다. 반환값의 `url`은 DB에 저장하고, `key`는 삭제할 때 사용합니다.
+- 테스트용 API: `POST /api/images` (multipart `file`)
+- 자격 증명은 코드에 두지 않습니다. EC2는 IAM Role을 사용하고, 로컬에서 업로드를 테스트하려면 `aws configure`로 개인 키를 설정합니다.
+
 ## CI/CD
 
 | 워크플로우 | 트리거 | 동작 |
