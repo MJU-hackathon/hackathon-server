@@ -13,6 +13,7 @@ import sopt.thingkerton.domain.image.code.ImageSuccessCode;
 import sopt.thingkerton.domain.image.dto.ImageUploadResponse;
 import sopt.thingkerton.domain.image.service.ImageService;
 import sopt.thingkerton.global.dto.CommonResponse;
+import sopt.thingkerton.global.infra.s3.UploadedFile;
 
 @Tag(name = "Image", description = "이미지 업로드")
 @RestController
@@ -25,6 +26,7 @@ public class ImageController {
     @Operation(summary = "이미지 업로드", description = "jpg, png, webp 이미지(최대 10MB)를 S3에 업로드하고 URL을 반환합니다.")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public CommonResponse<ImageUploadResponse> upload(@RequestPart("file") MultipartFile file) {
-        return CommonResponse.success(ImageSuccessCode.IMAGE_UPLOAD_SUCCESS, imageService.upload(file));
+        UploadedFile uploadedFile = imageService.upload(file);
+        return CommonResponse.success(ImageSuccessCode.IMAGE_UPLOAD_SUCCESS, ImageUploadResponse.from(uploadedFile));
     }
 }

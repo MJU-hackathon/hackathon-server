@@ -38,6 +38,9 @@ reviews:
       instructions: |
         Spring Boot 4 / Java 21 기준으로 리뷰해 주세요.
         - 계층 분리(controller → service → repository)와 책임이 적절한지
+        - Service가 Response DTO(*Response)를 반환하거나 생성하지 않는지 (응답 조립은 Controller + Response DTO의 정적 팩토리에서)
+        - Controller에 정렬·계산·권한 판단 같은 비즈니스 로직이 들어가지 않았는지
+        - Entity가 응답 바디로 직접 직렬화되거나 Controller에서 지연 로딩·상태 변경이 일어나지 않는지
         - 트랜잭션 범위(@Transactional, readOnly)와 JPA N+1 문제
         - 입력값 검증(@Valid)과 예외 처리 일관성
         - 민감 정보(키, 비밀번호)가 코드나 로그에 노출되지 않는지
