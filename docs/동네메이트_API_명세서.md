@@ -53,6 +53,7 @@ API는 8개다. 로그인·회원 인증·일기 수정/삭제·재도전·필�
 | WF-03 | POST | /quests/{questId}/pass | 패스(홈에서 제거, 보충 없음) |
 | WF-04 | POST | /diaries | 일기 저장(사진 포함, multipart) |
 | WF-05·05b | GET | /diaries | 일기 목록 + 집계 |
+| 개발용 | DELETE | /dev/daily-quests/today | 오늘 묶음 초기화(`APP_DEV_RESET_ENABLED=true`일 때만) |
 
 ## 프로필 (WF-01·내 정보)
 
@@ -332,6 +333,27 @@ WF-01 '회원가입'은 인증이 아니라 프로필 설정이다. 최초 설�
 - `title`·`placeName`은 `locale`에 맞춘 퀘스트 설명이다. 장소·활동 정체성은 같고 표현만 바뀐다. `memo`는 언어와 관계없이 원문.
 - 못 경험한 기록도 정상 일기로 같은 목록에 나온다.
 - MVP 데이터 규모가 작으므로 페이지네이션 없이 전체 반환한다(필요해지면 cursor 추가).
+
+## 개발용 (QA)
+
+### DELETE /dev/daily-quests/today
+
+같은 날에는 `ensure`가 기존 묶음만 반환하므로, 퀘스트 생성 흐름을 다시 테스트할 때 오늘 묶음을 지운다.
+
+- 서버 환경변수 `APP_DEV_RESET_ENABLED=true`일 때만 존재한다. 기본값은 꺼짐이며, 꺼져 있으면 404. **운영에서는 켜지 않는다.**
+- 헤더 `X-User-Key` 필수. 해당 사용자의 오늘(Asia/Seoul) 묶음과 그 퀘스트·번역·일기를 삭제한다.
+- 다른 날짜의 묶음·일기(중복 추천 제외 목록)는 그대로 둔다. 일기 사진(S3)은 삭제하지 않는다.
+- 묶음이 없어도 200이며 `deletedQuestCount`는 0.
+- 삭제 후 `today`는 `404 DAILY_SET_NOT_FOUND`, `ensure`는 새 묶음을 생성한다.
+
+```json
+{
+  "status": 200,
+  "code": "RESET_TODAY_QUESTS",
+  "message": "오늘 퀘스트 묶음을 초기화했습니다.",
+  "data": { "deletedQuestCount": 3 }
+}
+```
 
 ## 상태·데이터 모델
 

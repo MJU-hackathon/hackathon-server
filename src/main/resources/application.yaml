@@ -63,6 +63,9 @@ app:
       api-token: ${CLOUDFLARE_API_TOKEN:}
       image-model: ${CLOUDFLARE_IMAGE_MODEL:@cf/black-forest-labs/flux-1-schnell}
       steps: ${CLOUDFLARE_IMAGE_STEPS:4}
+  dev:
+    # 개발·QA용 초기화 API(DELETE /api/dev/daily-quests/today). 운영에서는 끈다
+    reset-enabled: ${APP_DEV_RESET_ENABLED:false}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
   s3:
